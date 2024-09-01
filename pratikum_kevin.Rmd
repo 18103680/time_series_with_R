@@ -1,0 +1,471 @@
+---
+title: "Kevin_synagogue_panjaitan_10023481"
+author: "AK281 ADW"
+date: "2024-03-14"
+output:
+  html_document:
+    theme : darkly
+    highlight: tango
+    df_print: paged
+---
+<center><span style="font-size: larger;">Konsep Dasar Deret Waktu</span></center>
+
+# Jurnal 1
+
+# 1. Konsep Dasar Deret Waktu
+## 1.1 Stasioneritas 
+  <p style="margin:20px; padding:15px;">Stasioneritas  mengacu pada ketidakberubahannya perilaku data sepanjang waktu, dengan dua jenis utama, yaitu stasioneritas kuat yang menuntut distribusi gabungan data pada berbagai waktu sama, dan stasioneritas lemah yang menuntut rataan dan kovariansi konstan sepanjang waktu, stasioneritas dalam analisis deret waktu memberikan pemahaman yang mendalam tentang perilaku data sepanjang waktu, membantu dalam memilih dan menerapkan metode pemodelan yang sesuai, serta memungkinkan penggunaan teknik analisis yang lebih akurat untuk membuat prediksi dan interpretasi yang lebih handal terhadap data yang diamati.</p>
+
+```{r} 
+#library yang akan di gunakan
+library(zoo)
+library(forecast)
+library(tseries)
+
+#seed simulasi agar tetap sama 
+
+set.seed(1670)
+
+# contoh data white noise 
+
+wn <- arima.sim(model = list(order = c(0,0,0)),n = 300)
+plot(wn,main = "data satu stasioner ", xlab = "waktu",ylab = "nilai")
+abline(h = mean(wn),col = "red",lwd = 2,lty = 2)
+
+
+
+```
+
+<center><br>Maka di dapatkan beberapa Hal terpenting </center>
+<br>
+
+1.Garis merah pada kode perintah diatas menunjukan rerata dari seberan data white noise
+
+2.secara visual terlihat sebagai serangkaian nilai acak yang tersebar tanpa pola atau tren yang jelas. Ini berarti bahwa dalam data white noise, tidak ada pola atau tren yang dapat diidentifikasi secara visual. Data tersebut cenderung berosilasi di sekitar nilai rata-rata tanpa menunjukkan arah atau kecenderungan tertentu dari waktu ke waktu. 
+
+3.Data white noise secara visual terlihat tersebar di sekitar nilai rerata tanpa menunjukkan kecenderungan tertentu dari waktu ke waktu.
+
+4.Grafik tersebut menunjukan variansi berbeda karna kita lihat variansi membesar setiap pengamatan waktu
+
+# Jurnal 2 
+                                                                  
+```{r}
+#kode juranl 2
+# Seed agar simulasi tetap sama
+set.seed(1602)
+# Data Harga Emas
+data(gold)
+sum <- ts(gold[1:300])
+sum <- na.fill(sum, median(sum, na.rm = T))
+mean_sum <- mean(sum, na.rm = T)
+plot(sum, main = "Data Harga Emas, Tidak Stasioner", xlab = "Waktu",
+ylab = "Harga (USD)")
+abline(h = mean_sum, col = "red", lwd = 2, lty = 2)
+
+```
+
+<center><br>Beberapa Hal Terpenting Yang Didapatkan</center>
+<br>
+1.Berdasarkan grafik yang ditampilkan, terdapat data harga emas yang tidak stasioner. Grafik tersebut menunjukkan fluktuasi harga emas dari waktu ke waktu tanpa adanya tren atau pola yang jelas. Garis merah putus-putus menunjukkan nilai rata-rata dari data harga emas. Dengan demikian, grafik ini memberikan gambaran visual tentang volatilitas harga emas tanpa adanya tren yang konsisten.
+
+2.data tersebar rata pada rerata data, dengan memeriksa sebaran data di sekitar rerata. Jika sebagian besar data berada dalam jangkauan yang dekat dengan rerata, maka data tersebut cenderung tersebar rata pada rerata. Namun, untuk menentukan hal ini secara pasti, perlu dilakukan analisis lebih lanjut untuk mengetahui hal tersebut
+
+3.Variansi yang tetap pada semua lag waktu menunjukkan bahwa fluktuasi data relatif stabil dari waktu ke waktu. Untuk menentukan hal ini, perlu dilakukan perhitungan variansi pada selang waktu yang berbeda dan perbandingan hasilnya.
+
+#Jurnal 3
+
+```{r}
+# Seed agar simulasi tetap sama
+set.seed(1602)
+# Data CO2
+data("co2")
+seasonal <- ts(co2[1:300])
+plot(seasonal, main = "Data CO2, Tidak Stasioner", xlab = "Waktu",
+ylab = "Konsentrasi (ppm)")
+abline(h = mean(seasonal), col = "red", lwd = 2, lty = 2)
+
+```
+
+<center><br>Beberapa Hal Terpenting Yang Didapatkan</center>
+<br>
+1.Grafik menunjukkan data CO2 dalam rentang waktu tertentu. Dari grafik tersebut, kita dapat melihat fluktuasi konsentrasi CO2 dari waktu ke waktu. Terdapat variasi dalam konsentrasi CO2 yang tidak menunjukkan pola stasioner, yang dapat mengindikasikan adanya fluktuasi musiman atau tren tertentu dalam data.
+
+2.melihat apakah garis rerata (garis merah putus-putus) sejajar dengan sebagian besar data. Jika garis rerata sejajar dengan sebagian besar data, maka data cenderung tersebar di sekitar rerata. Namun, jika garis rerata tidak sejajar dengan sebagian besar data, hal ini menunjukkan bahwa data tidak tersebar secara merata di sekitar rerata.
+
+3.Terdapat pola fluktuasi dalam data CO2 yang tidak menunjukkan stasioneritas. Hal ini dapat mengindikasikan adanya variasi musiman atau tren tertentu dalam konsentrasi CO2 dari waktu ke waktu. Pola ini dapat menjadi penting dalam analisis lebih lanjut terhadap faktor-faktor yang memengaruhi fluktuasi konsentrasi CO2.
+
+
+# Jurnal 4
+
+```{r}
+#kode jurnal 4
+# Seed agar simulasi tetap sama
+set.seed(1602)
+# Membuat data Random Walk
+random_walk <- arima.sim(model = list(order = c(0, 1, 0)), n = 300)
+plot(random_walk, main = "Data Random Walk, Tidak Stasioner", xlab = "Waktu",
+ylab = "Nilai")
+abline(h = mean(random_walk), col = "red", lwd = 2, lty = 2)
+
+```
+
+<center><br>Beberapa Hal Terpenting Yang Didapatkan</center>
+<br>
+1.Grafik menunjukkan serangkaian data dari proses random walk. Proses random walk adalah proses stokastik di mana langkah-langkah berikutnya ditentukan oleh langkah-langkah sebelumnya yang ditambah dengan suatu nilai acak. Dalam grafik ini, kita melihat serangkaian nilai yang tampak acak, naik turun tanpa pola yang jelas. Hal ini mencerminkan sifat stokastik dari proses random walk, di mana tidak ada tren atau pola yang dapat diidentifikasi secara visual.
+
+2.Ya, data tersebut tersebar di sekitar rata-rata data. Garis horizontal merah pada grafik menunjukkan nilai rata-rata dari data random walk. Jika data tersebar secara merata di sekitar garis ini, maka ini menunjukkan bahwa data memiliki sifat stasioner dalam arti bahwa nilai rata-ratanya tidak berubah secara signifikan dari waktu ke waktu.
+
+3.tidak terdapat pola tren yang jelas dalam data tersebut. Grafik menunjukkan fluktuasi acak di sekitar nilai rata-rata tanpa arah atau pola yang konsisten dari waktu ke waktu. Ini sesuai dengan sifat proses random walk di mana setiap langkah selanjutnya diambil secara acak berdasarkan langkah sebelumnya.
+
+
+
+## 1.2 Autokorelasi
+  <p style="margin:20px; padding:15px;">   konsep dasar dari autokorelasi adalah tentang hubungan antara nilai-nilai dalam deret waktu dengan nilai-nilai sebelumnya dalam deret tersebut. Autokorelasi digunakan untuk mengidentifikasi pola dalam deret waktu, mengevaluasi ketergantungan serial dalam data, dan membantu dalam pemodelan serta prediksi perilaku deret waktu. Dengan pemahaman tentang autokorelasi, analis dapat mengambil langkah-langkah yang tepat dalam menganalisis dan memodelkan data deret waktu untuk tujuan prediksi atau interpretasi yang lebih baik.</p>
+  <p style="margin:20px; padding:15px;"> uji autokorelasi yang memungkinkan kita untuk menggunakan analisis deret waktu adalah ketika tidak ada autokorelasi yang signifikan dalam data. Dalam konteks ini, analisis deret waktu dapat dilakukan dengan lebih percaya diri karena asumsi dasar tentang independensi antara pengamatan terpenuhi. Dengan demikian, hasil analisis dan interpretasinya akan lebih dapat diandalkan. Jika ada autokorelasi yang signifikan, langkah-langkah koreksi atau modifikasi pada model perlu dipertimbangkan untuk mengatasi masalah tersebut dan memastikan keandalan analisis.<p>
+  <p>Kegagalan dalam mengidentifikasi dan menangani autokorelasi dapat menghasilkan estimasi
+parameter yang bias atau tidak konsisten, serta interval kepercayaan dan uji
+hipotesis yang tidak valid. Oleh karena itu, memeriksa autokorelasi adalah langkah
+penting dalam memastikan keandalan analisis deret waktu.</p>
+
+# Jurnal 6
+  
+## 1.3 Langkah Acak 
+  <p style="margin:20px; padding:15px;">Langkah dalam  meramalkan deret waktu dapat memberikan pemahaman yang lebih mendalam tentang pola dan tren di dalam data dengan model yang lebih akurat, pengambil keputusan dapat membuat keputusan yang lebih terinformasi dan tepat di berbagai bidang, karena mereka memiliki pandangan yang lebih jelas tentang perilaku masa depan dari fenomena yang diamati. </p>
+  <p style="margin:20px; padding:15px;"> Dengan demikian langkah acak dapat membantu kita untuk menghasilkan model yang lebih baik dan  dapat digunakan untuk meramalkan deret waktu dengan lebih baik maka Hasil dari analisis dan ramalan tersebut dapat menjadi dasar bagi pengambil keputusan untuk membuat keputusan yang lebih baik.</p>
+```{r}
+
+#kode jurnal ke -6
+# Membaca data
+
+library(readxl)
+df <-read_xlsx("data.xlsx")
+
+# Membuat plot data
+plot(df$Date, df$`Ice Cream Sales`, type = "line", xlab = "Bulan",
+ylab = "Penjualan Es Krim", col = "black", main = "Plot Data Penjualan Es Krim")
+abline(h = mean(df$`Ice Cream Sales`), col = "red", lwd = 2, lty = 2)
+
+# Algoritma menghitung rerata (boleh menggunakan sum)
+sum_x <- sum(df$`Ice Cream Sales`)
+len <- length(df$`Ice Cream Sales`)
+rata_x <- sum_x/len
+
+# Algoritma menghitung kovariansi
+maxLag <- 24
+kov <- rep(0, maxLag)
+for (k in 1:maxLag) {
+x_star <- df$`Ice Cream Sales`[1:(len - k + 1)] - mean(df$`Ice Cream Sales`[1:(len -
+k + 1)])
+y_star <- df$`Ice Cream Sales`[(1 + k - 1):len] - mean(df$`Ice Cream Sales`[(1 +
+k - 1):len])
+kov[k] <- (x_star) %*% (y_star)/(len)
+}
+
+# Algoritma menghitung korelasi
+kor <- rep(0, maxLag)
+for (k in 1:maxLag) {
+x_star <- df$`Ice Cream Sales`[1:(len - k + 1)] - mean(df$`Ice Cream Sales`[1:(len -
+k + 1)])
+y_star <- df$`Ice Cream Sales`[k:len] - mean(df$`Ice Cream Sales`[k:len])
+penyebut <- sqrt((x_star %*% x_star) * (y_star %*% y_star))
+kor[k] <- x_star %*% y_star/penyebut
+}
+
+# Algoritma Menghitung Rerata (boleh menggunakan sum)
+sum_x <- sum(df$`Ice Cream Sales`)
+len <- length(df$`Ice Cream Sales`)
+rata_x <- sum_x/len
+# Menampilkan hasil perhitungan
+result_summary <- data.frame(
+ Total_Sales = sum_x,
+ Length = len,
+ Average_Sales = rata_x
+)
+knitr::kable(result_summary)
+
+# Algoritma Menghitung Kovariansi
+maxLag <- 24
+kov <- rep(0, maxLag)
+for (k in 1:maxLag) {
+ x_star <- df$`Ice Cream Sales`[1:(len - k + 1)] - mean(df$`Ice Cream Sales`
+[1:(len - k + 1)])
+ y_star <- df$`Ice Cream Sales`[(1 + k - 1):len] - mean(df$`Ice Cream Sales`
+[(1 + k - 1):len])
+ kov[k] <- (x_star) %*% (y_star)/(len)
+}
+# Menampilkan hasil perhitungan
+result_table <- data.frame(Lag = 1:maxLag, Autocorrelation = kov)
+knitr::kable(result_table)
+
+print(rata_x)
+print(kov)
+print(kor)
+
+```
+
+<br>
+<center> Beberapa Hal Penting yang di dapatkan </center>
+
+<br>
+1. Jelas bahwa rerata dari data tersebut 441.2688
+<br>
+2. kovarians dari data tersebut  
+9229.9505 8217.0017 7267.5372 6356.2937 5673.2073 4898.3655 4178.3053
+3629.7738 3140.1409 2798.1315 2446.7792 2321.6576 2234.7446 1988.9628
+1623.8552 1316.2133 1277.1079 1258.6103 1443.2569 1479.5119 1437.8253
+1436.8497 1293.9388  964.7977
+<br>
+3. dan korelasi data tersebut 
+1.0000000 0.9128301 0.8268615 0.7377457 0.6690019 0.5992711 0.5336409
+0.4762039 0.4186478 0.3771431 0.3319452 0.3181725 0.3102766 0.2853226
+0.2393165 0.1961786 0.1907016 0.1883256 0.2159648 0.2215485 0.2155192
+0.2156591 0.1950013 0.1462435
+
+
+
+
+#Jurnal 7
+
+# 2 Model Deret Waktu Stasioner
+<p style="margin:20px; padding:15px;"> Model deret waktu stasioner menjadi penting karena memberikan kerangka kerja yang kuat untuk memahami, menganalisis, dan memprediksi pola perilaku dalam data deret waktu. Dengan mempelajari model deret waktu stasioner, individu dapat mengembangkan kemampuan untuk melakukan prediksi yang lebih akurat, menganalisis hubungan sebab-akibat antara variabel-variabel dalam deret waktu, mengelola risiko dengan lebih baik, merencanakan bisnis dengan lebih efisien, mengevaluasi efek kebijakan, mengoptimalkan proses-produksi, dan mendukung penelitian ilmiah dengan data yang lebih kuat. Sebagai alat analisis yang kuat, model deret waktu stasioner memberikan wawasan yang berharga dalam berbagai bidang, dari ekonomi hingga ilmu lingkungan, membantu individu dan organisasi membuat keputusan yang lebih baik dan mengambil langkah-langkah yang lebih tepat di masa depan.</p>
+
+## 2.1 Rataan Begerak 
+
+<p style="margin:20px; padding:15px;">moving average merupakan hal yang penting karena teknik ini memberikan cara untuk menghaluskan fluktuasi dalam data deret waktu, memungkinkan kita untuk mengidentifikasi tren, pola, dan perubahan penting dalam data. Dengan menggunakan moving average, kita dapat membuat prediksi yang lebih baik, mengelola risiko dengan lebih efektif, dan mengidentifikasi sinyal penting dalam data keuangan, ekonomi, sosial, dan lingkungan. Analisis menggunakan moving average juga membantu dalam mengevaluasi performa, mengidentifikasi pola siklus, dan mendukung penelitian ilmiah dengan data yang lebih terstruktur. Dengan demikian, studi tentang moving average memberikan alat analisis yang kuat dalam memahami dan memprediksi perilaku dalam deret waktu, yang memiliki aplikasi luas di berbagai bidang</p>
+
+
+```{r}
+#kode jurnal ke 7
+
+# mensimulasikan ma(1)
+n_sim <- 150 # Banyak data
+theta_1 <- -0.8 # Nilai dari theta_1
+theta_2 <- 0.1
+simulasi_ma <- arima.sim(model = list(c(0, 0, 1), ma = theta_1,theta_2), n = n_sim)
+plot(simulasi_ma, main = "Grafik Data MA(1)", xlab = "Waktu", ylab = "Nilai")
+acf(simulasi_ma, main = "Grafik ACF Data MA(1)", lag.max = 36)
+pacf(simulasi_ma, main = "Grafik PACF Data MA(1)", lag.max = 36)
+
+```
+<br>
+<center> Beberapa Hal Penting yang di dapatkan </center>
+
+1. jelas dari kode diatas persamaak ma(1) =
+\[ X_t = Z_t - 0.8 \cdot Z_{t-1} \] Di mana \(X_t\) adalah observasi pada waktu \(t\), \(Z_t\) adalah variabel random dengan distribusi normal standar, dan \(\theta = -0.8\) adalah koefisien MA(1).
+
+2. grafik menunjukkan bahwa data tersebar di sekitar rata-rata nol tanpa pola yang jelas atau tren yang konsisten, yang sesuai dengan model MA(1)
+
+3. ya jelas karena grafik ACF dan PACF menunjukkan pola seperti yang dijelaskan pada kode 
+di atas, maka data sesuai dengan model MA(1). 
+
+4. informasi yang Anda berikan sebelumnya, jika grafik ACF dan PACF menunjukkan pola yang sesuai dengan model MA(1) dengan koefisien teta tersebut, karena kita tahu model tersebut memberikan prediksi yang baik terhadap data, serta uji statistik menunjukkan kecocokan antara data dan model.
+
+#sini saya akan mensimulasikan ulang hasil yang berbeda pada teta di rentang [-0.9 < teta < 0.9]
+
+```{r}
+# Simulasi ulang deret MA(1) dengan memvariasikan nilai theta
+n_sim <- 150  # Banyak data
+theta_values <- c(-0.9, -0.5, 0, 0.5, 0.9)  # Variasi nilai theta
+
+par(mfrow = c(5, 1), mar = c(4, 4, 2, 1))  # Mengatur tata letak untuk beberapa plot
+
+for (i in 1:length(theta_values)) {
+  theta <- theta_values[i]
+  simulasi_ma <- arima.sim(model = list(ma = theta), n = n_sim)
+  plot(simulasi_ma, main = paste("Grafik Data MA(1) dengan Theta =", theta),
+       xlab = "Waktu", ylab = "Nilai")
+}
+
+```
+
+## 2.2 Regresi diri (AR)
+<p  style="margin:20px; padding:15px;">Regresi Diri (AR) memberikan alat analisis untuk memodelkan dan memprediksi data deret waktu dengan mempertimbangkan hubungan antara nilai-nilai masa lalu dan nilai-nilai saat ini. Ini berguna dalam peramalan, pengendalian proses, analisis penyebab dan efek, pemodelan kebijakan, penelitian ilmiah, dan optimasi rantai pasokan. Dengan memahami AR, individu dapat membuat keputusan yang lebih baik berdasarkan pola dan tren dalam data deret waktu. Model ini mengasumsikan bahwa nilai variabel pada waktu t bergantung pada nilai-nilai variabel pada waktu sebelumnya, serta terdapat gangguan acak yang tidak dijelaskan oleh model.kemudian kita dapat digunakan untuk memprediksi nilai-nilai masa depan dari deret waktu.</p>
+  
+# jurnal 8
+
+```{r}
+#mensimulasikan deret waktu AR(1).
+
+n_sim <- 150 # Banyak data
+phi <- 0.2 # Nilai dari phi_1
+simulasi_ar <- arima.sim(model = list(c(1, 0, 0), ar = phi), n = n_sim)
+plot(simulasi_ar, main = "Grafik Data AR(1)", xlab = "Waktu", ylab = "Nilai")
+acf(simulasi_ar, main = "Grafik ACF Data AR(1)", lag.max = 36)
+pacf(simulasi_ar, main = "Grafik ACF Data AR(1)", lag.max = 36)
+
+```
+
+pada temuan saya saya dapat simpulkan bahawa Semakin besar teta  semakin besar peningkatan fluktuasi yang dimiliki oleh model MA(1)
+
+
+<br>
+<center> Beberapa Hal Penting yang di dapatkan </center>
+1. jelas bahwa model persamaan itu ialah persamaan AR(1)  \( X_t = \phi X_{t-1} + \varepsilon_t \)
+
+2.data memiliki pola autokorelasi positif yang cukup kuat pada lag pertama, yang sesuai dengan model AR(1) yang digunakan untuk mensimulasikan data. Namun, tidak ada pola tren yang jelas dalam data tersebut, dan variasinya tampaknya dipengaruhi oleh faktor-faktor stokastik.karena dapat kita lihat pada lag 0 nilai pacfnya itu = 1 dan PACF nya menurun drastis menuju 0 yang menunjukan bahwa korelasi menunjukan pada lag pertama sesuai dengan model AR(1)
+
+3.Ya jelas karena ACF dan PACF pada grafik memperlihatkan perilaku yang konsisten dengan model AR(1), dengan korelasi yang tinggi hanya terjadi pada lag pertama dan menurun secara cepat setelahnya, sesuai dengan pola autoregresif dari model tersebut.
+
+
+4. ya jelas dari grafis model yang kita lihat model tersebut memberikan prediksi yang baik, maka Anda dapat mengatakan bahwa data masih cocok untuk dimodelkan dengan model AR(1).
+
+5. disini saya akan menggunakan  -0.9 <= phi <= 0.9 maka bentuk simulasi yang ulang yaitu 
+
+```{r}
+library(stats)
+
+# Jumlah data yang akan disimulasikan
+n_sim <- 150
+
+# Daftar nilai phi yang akan diuji
+phi_values <- c(0.2, 0.5, 0.8)
+
+# Simulasi dan analisis untuk setiap nilai phi
+for (phi in phi_values) {
+  # Simulasi deret AR(1) dengan nilai phi tertentu
+  simulasi_ar <- arima.sim(model = list(ar = phi), n = n_sim)
+  
+  # Plot deret waktu
+  plot(simulasi_ar, main = paste0("Grafik Data AR(1) (phi = ", phi, ")"), xlab = "Waktu", ylab = "Nilai")
+  
+  # Plot ACF
+  acf(simulasi_ar, main = paste0("Grafik ACF Data AR(1) (phi = ", phi, ")"), lag.max = 36)
+  
+  # Plot PACF
+  pacf(simulasi_ar, main = paste0("Grafik PACF Data AR(1) (phi = ", phi, ")"), lag.max = 36)
+}
+
+
+```
+Simpulan temuan saya ialah saya  mengharapkan bahwa semakin besar nilai phi, semakin dominan efek autoregresifnya dalam deret waktu
+
+## 2.3 Regresi Diri dan Rataan Bergerak (ARMA)
+
+<p> ARMA (Autoregressive Moving Average) adalah model yang sering digunakan untuk memodelkan dan meramalkan data deret waktu yang stasioner, dengan menggabungkan komponen autoregresif dan moving average. Ini memberikan pemahaman yang lebih baik tentang bagaimana variabel dipengaruhi oleh nilai-nilai sebelumnya dan perubahan acak. Ketiga, pemahaman tentang regresi diri dan ARMA penting dalam analisis ekonometrik, meteorologi, keuangan, dan berbagai bidang lainnya di mana data deret waktu digunakan untuk membuat prediksi dan mengambil keputusan. Akhirnya, kemampuan untuk menerapkan dan memahami model-model ini memungkinkan praktisi untuk membuat proyeksi yang lebih akurat dan membuat keputusan yang lebih baik berdasarkan data historis.</p>
+
+# Jurnal 9
+
+```{r}
+#  mensimulasikan deret ARMA(1,1)
+n_sim <- 150 # Banyak data
+theta <- -0.3 # Nilai dari theta_1
+phi <- 0.2 # Nilai dari phi_1
+simulasi_arma <- arima.sim(model = list(c(1, 0, 1), ar = phi, ma = theta),
+n = n_sim)
+plot(simulasi_arma, main = "Grafik Data ARMA(1,1)", xlab = "Waktu",
+ylab = "Nilai")
+acf(simulasi_arma, main = "Grafik ACF Data ARMA(1,1)", lag.max = 36)
+pacf(simulasi_arma, main = "Grafik PACF Data ARMA(1,1)", lag.max = 36)
+
+```
+
+<center> Beberapa Hal Penting yang di dapatkan </center>
+
+1.Jelas bahwa Model ARMA(1,1) yang disimulasikan oleh kode di atas dapat dituliskan dalam bentuk persamaan matematis sebagai berikut \[X_t = \phi X_{t-1} + \varepsilon_t + \theta \varepsilon_{t-1}\]
+
+2.Interpretasi keseluruhan bergantung pada bagaimana grafik ACF dan PACF terlihat. Jika tidak ada pola yang jelas karena terdapat lag yang sangat signifikan 
+
+3.Dari grafik ACF (Autocorrelation Function) dan PACF (Partial Autocorrelation Function), terlihat bahwa terdapat autocorrelation pada lag pertama, sesuai dengan model ARMA(1,1). Autocorrelation pada lag pertama merupakan ciri khas dari model ARMA(1,1), di mana terdapat korelasi antara nilai saat ini dengan nilai satu waktu sebelumnya. Ini sesuai dengan perilaku yang diharapkan dari model tersebut.
+
+4.Berdasarkan analisis ACF dan PACF serta visualisasi grafik, data tersebut masih cocok untuk dimodelkan dengan model ARMA(1,1), karena perilaku autocorrelation sesuai dengan model tersebut. Meskipun demikian, untuk memastikan kecocokan
+model, lebih lanjut dapat dilakukan pengujian statistik dan evaluasi kecocokan model secara lebih mendalam
+
+
+
+## 2.4 Simulasi Data Manual 
+
+<p>Mempelajari simulasi data secara manual memiliki beberapa kepentingan yang signifikan. Pertama, hal ini memberikan pemahaman yang lebih mendalam tentang proses pembuatan dan pengolahan data. Dengan memahami langkah-langkahnya secara manual, mahasiswa dapat memahami konsep dasar statistik dengan lebih baik. Kedua, melalui simulasi manual, mahasiswa dapat mengembangkan keterampilan analisis dan pemecahan masalah yang kuat, karena mereka harus memahami setiap tahap dalam proses simulasi dan mengevaluasi hasilnya secara kritis. Ketiga, simulasi data manual memungkinkan mahasiswa untuk lebih fleksibel dalam mengubah parameter dan variabel, sehingga mereka dapat menguji berbagai skenario dan memahami dampaknya pada hasil. Terakhir, belajar secara manual membantu mahasiswa untuk menghargai pentingnya akurasi dan ketelitian dalam analisis data, karena mereka harus melakukan proses dengan cermat untuk menghasilkan hasil yang valid.</p>
+
+# Jurnal 10
+
+```{r}
+#kode jurnal 10
+# menmbangkitkan deret ARMA(1,1) secara manual.
+n_sim <- 100 # Banyak Data
+phi <- 0.8 # Nilai dari phi_1
+theta <- -0.5 # Nilai dari theta_1
+sig <- 16 # Besar standar deviasi galat
+Y <- c(rep(0, n_sim)) # Nilai awal, membuat array / vektor data
+e <- rnorm(n = n_sim, mean = 0, sd = sig) # Membuat deret galat
+for (i in 2:n_sim) {
+if (i)
+Y[i] <- phi * Y[i - 1] + e[i] - theta * e[i - 1]
+}
+plot(Y, type = "l", main = "Data ARMA(1,1) Manual", xlab = "Waktu",
+ylab = "Nilai")
+
+```
+<br>
+<center> Beberapa Hal Penting yang di dapatkan </center>
+
+1. Pada  Grafik tersebut menunjukkan fluktuasi acak di sekitar nilai tengah tanpa tren yang jelas, yang konsisten dengan hasil model ARMA(1,1) yang digunakan untuk menghasilkan deret waktu tersebut, Juga dapat kita lihat Fluktuasi dalam deret waktu dapat disebabkan oleh efek moving average (MA) dan autoregressive (AR) dalam model ARMA(1,1) dan Deret waktu tampaknya memiliki kestabilan relatif, dengan fluktuasi dalam rentang yang relatif kecil di sekitar suatu nilai tengah
+
+2. ya jelas tidak, karena data pada grafik tersebut tidak terpusat di sekitar satu nilai rata-rata tertentu, melainkan fluktuasi di sekitar nilai tengah tanpa tren yang jelas.
+
+3. ya jelas ada karena pada data tersebut terdapat pola fluktuasi yang terjadi secara acak di sekitar suatu nilai tengah, yang menunjukkan adanya pola dalam perilaku deret waktu.
+
+
+# Jurnal 11
+```{r}
+maxLag <- 25
+acf_manual <- rep(1, maxLag)
+for (i in 1:maxLag) {
+pembilang <- (Y[1:(n_sim - i + 1)] - mean(Y)) %*% (Y[i:n_sim] -
+mean(Y))
+penyebut <- sum((Y - mean(Y))^2)
+acf_manual[i] <- sum(pembilang/penyebut)
+}
+acf_r <- as.vector(acf(Y, lag.max = 24, plot = F)$acf)
+galat <- acf_manual - acf_r
+sum(galat) # Total Galat
+## [1] -1.63064e-16
+library(matrixcalc) # Untuk mencari invers matriks
+maxLag <- 24 # Ukuran vektor dan matriks
+pacf_manual <- rep(0, maxLag)
+for (k in 1:maxLag) {
+if (k == 1)
+{
+pacf_manual[k] <- acf_r[2] # Hati - hati
+} #jika ingin mengubah maxLag
+else {
+rho <- acf_r[1:(k + 1)] # Vektor y
+phi <- matrix(1, nrow = k, ncol = k) # Matriks A
+for (i in 1:(k)) {
+for (j in 1:(k)) {
+phi[i, j] <- rho[abs(i - j) + 1] # Membuat matriks simetri
+}
+} # vektor x
+pacf_manual[k] <- as.vector(matrix.inverse(phi) %*% rho[2:(k +
+1)])[k]
+}
+}
+pacf_r <- as.vector(acf(Y, lag.max = maxLag, type = "partial", plot = F)$acf)
+galat <- pacf_manual - pacf_r
+sum(galat) # Total Galat
+
+
+
+```
+
+
+<center> Beberapa Hal Penting yang di dapatkan </center>
+1. model deret waktu derau putih (white noise) dan model langkah acak (random walk) termasuk dalam keluarga model ARMA, meskipun keduanya memiliki karakteristik yang berbeda. Model derau putih, yang merupakan model ARMA(0,0), tidak memiliki korelasi antara observasi pada waktu yang berbeda, sementara model langkah acak, yang merupakan kasus khusus dari model ARIMA(0,1,0), menunjukkan ketergantungan antarobservasi karena setiap observasi dipengaruhi oleh nilai observasi sebelumnya dan suatu komponen stokastik. Pemahaman tentang kedua model ini penting dalam analisis deret waktu untuk pemilihan model yang tepat sesuai dengan perilaku data yang diamati, baik untuk memodelkan komponen tak terduga atau gangguan (white noise) maupun untuk mewakili tren atau perubahan berkelanjutan dalam data (random walk).
+
+# berikut potongan kode arma(3,1)
+```{r}
+library(forecast)
+# Tentukan parameter AR, MA, dan panjang data
+phi <- c(0.6, -0.4, 0.2) # Parameter autoregressive (AR)
+theta <- 0.3 # Parameter moving average (MA)
+n <- 100 # Panjang data yang ingin dibangkitkan
+# Bangkitkan data dari proses ARMA(3,1)
+set.seed(123) # Tetapkan seed untuk hasil yang konsisten
+arma_data <- arima.sim(model = list(ar = phi, ma = theta), n = n)
+# Tampilkan hasil
+print(arma_data)
+
+```
+
+3. Ya, meskipun model ARMA diasumsikan memiliki rerata nol, masalah pada praktik seringkali melibatkan data dengan rerata yang tidak nol. Untuk menangani kasus ini, digunakan model ARIMA yang merupakan perluasan dari model ARMA dengan tambahan komponen Integrated (I) yang memungkinkan untuk penanganan tren atau komponen musiman dalam data. Dengan memasukkan komponen AR, I, dan MA secara bersama-sama, model ARIMA mampu mengatasi data deret waktu dengan rerata yang tidak nol dan memungkinkan analisis yang lebih akurat terhadap tren dan pola dalam data praktis.
+
+

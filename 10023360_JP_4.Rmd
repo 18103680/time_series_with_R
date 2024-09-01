@@ -1,0 +1,941 @@
+---  
+title: "JURNAL PRAKTIKUM MODUL 4 MODEL HETEROSKEDASTIK"
+author: "AK2181 ADW"
+date: "2024-05-15"
+output:
+  html_document:
+    theme: darkly
+    highlight: zenburn
+  pdf_document: default
+---  
+
+## **NAMA: Adeline Asdhiny Valerina Carelsz**
+## **NIM : 10023360**
+
+# MODUL 4 MODEL HETEROSKEDASTIK
+
+Tujuan Praktikum
+1. Memahami dan mengidentifikasi model deret waktu heteroskedastik;
+2. Menganalisis data real deret waktu heteroskedastik dan memodelkannya.
+
+ Mempelajari model heteroskedastik sangat penting untuk membangun model deret waktu yang lebih akurat, andal, dan informatif.
+Pemahaman tentang heteroskedastik dapat membantu kita untuk meningkatkan kualitas prediksi, memperoleh kesimpulan yang lebih andal, memahami dinamika data yang lebih baik, dan memperluas jangkauan aplikasi analisis deret waktu.
+
+
+# DATA HARGA DOGE-USD
+
+## 1. Analisis Data atau EDA (Exploratory Data Analysis)
+
+ Pada bagian ini, sari numerik dari data akan dihitung. Diagram garis juga ditunjukkan.
+ 
+```{r}
+ # Memanggil Data
+library(readr)
+library(tseries)
+library(forecast)
+
+data <- read_csv("DOGE-USD.csv", col_types = cols(Date = col_date(format = "%m/%d/%Y")))
+plot(data$Date, data$Close, type = "l", main = "Harga Doge Coin, \n April 2021-November 2021",
+xlab = "Tanggal", ylab = "USD")
+# Membuat garis rataan
+abline(h = mean(data$Close), lwd = 2, lty = 2, col = "red")
+# Statistik Deskriptif
+summary(data$Close)
+
+ts_data <- ts(diff(log(data$Close)))
+plot(ts_data, type = "l", main = "Harga Doge Coin. \n April 2021-November 2021",
+xlab = "Tanggal", ylab = "USD")
+abline(h = mean(ts_data), lwd = 2, lty = 2, col = "red")
+# Statistik Deskriptif
+summary(ts_data)
+
+acf(ts_data, main = "ACF Harga Doge Coin", lag.max = 36)
+
+adf.test(ts_data)
+
+ts_train <- ts_data[1:(floor(0.8 * length(ts_data)))]
+ts_validation <- ts_data[ceiling(0.8 * length(ts_data)):length(ts_data)]
+acf(ts_train, main = "ACF Data", lag.max = 36)
+
+pacf(ts_train, main = "PACF Data", lag.max = 36)
+
+mod <- auto.arima(ts_data, max.q = 0, allowmean = TRUE, allowdrift = TRUE,
+method = "ML")
+fc <- forecast(ts_data, model = mod, h = 10)
+plot(fc)
+```
+
+**Jurnal Praktikum 1**
+
+ARIMA(0,0,0) untuk data log-return bisa jadi wajar dalam kondisi tertentu, namun belum tentu ideal.
+
+**Kemungkinan ARIMA(0,0,0) Wajar:**
+
+* **White Noise: ARIMA(0,0,0)** merepresentasikan data "white noise". Ini berarti tidak ada autoregressive (AR) atau moving average (MA) yang mempengaruhi nilai data saat ini. Jika log-return benar-benar acak dan tidak bergantung pada nilai sebelumnya, ARIMA(0,0,0) mungkin cocok.
+
+**Argumen ARIMA(0,0,0) Mungkin Tidak Ideal:**
+
+* Seringkali Terlalu Sederhana: Data keuangan, termasuk log-return, seringkali menunjukkan pola ketergantungan atau volatilitas terkelompok. ARIMA(0,0,0) tidak menangkap pola tersebut, sehingga mungkin kurang akurat untuk peramalan.
+
+* Overfitting Data Kecil: ARIMA(0,0,0) bisa jadi hasil dari overfitting data terbatas. Model ini minim parameter dan mudah "cocok" dengan fluktuasi acak di data kecil.
+
+* **ACF dan PACF:** Lihat plot ACF (autocorrelation function) dan PACF (partial autocorrelation function) dari data log-return Anda. Jika terdapat potongan signifikan di plot ini, menunjukkan ketergantungan pada nilai sebelumnya, maka ARIMA(0,0,0) tidak cocok.
+
+
+
+```{r}
+checkresiduals(mod)
+```
+
+## 2. Model Heteroskedastis
+
+```{r}
+library(nortest)
+library(tseries)
+residual <- residuals(mod, standardize = T)
+# QQ Plot
+qqnorm(residual)
+qqline(residual)
+
+# Uji Saphiro-Wilk
+shapiro.test(residual)
+
+# Uji Anderson-Darling
+ad.test(residual)
+```
+
+
+**Jurnal Praktikum 2**
+
+**Formulasi Hipotesis, Statistik Uji, dan Syarat Pengambilan Keputusan**
+
+**Uji Box-Pierce**
+
+**Hipotesis:**
+
+* H0: Tidak terdapat autokorelasi pada residu (deret residu tidak berkorelasi)
+
+* H1: Terdapat autokorelasi pada residu (deret residu berkorelasi)
+
+**Statistik Uji:**
+
+* Statistik Box-Pierce: Q
+
+* Nilai P: p-value
+
+**Syarat Pengambilan Keputusan:**
+
+* Tolak H0 jika p-value < α (tingkat signifikansi)
+
+* Gagal tolak H0 jika p-value ≥ α
+
+**Uji ARCH Engel**
+
+**Hipotesis:**
+
+* H0: Tidak terdapat heteroskedasitas tipe ARCH (varian residu tidak tergantung pada nilai residu sebelumnya)
+
+* H1: Terdapat heteroskedasitas tipe ARCH (varian residu tergantung pada nilai residu sebelumnya)
+
+**Statistik Uji:**
+
+* Statistik Lagrange Multiplier (LM)
+* Nilai P: p-value
+
+**Syarat Pengambilan Keputusan:**
+
+* Tolak H0 jika p-value < α (tingkat signifikansi)
+* Gagal tolak H0 jika p-value ≥ α
+
+```{r}
+library(FinTS)
+resid2 <- residual^2
+plot(resid2, main = "Grafik Galat Kuadrat", type = "l")
+
+Box.test(resid2, lag = 12)
+
+ArchTest(residual)
+```
+
+**Jurnal Praktikum 3**
+
+Untuk uji Box-Ljung diperlukan residual yang  dikuadaratkan  karena membantu menstabilkan variansinya, meningkatkan sensitivitas tes, dan memudahkan interpretasi statistik. Uji ARCH, di sisi lain, tidak memerlukan residual yang dikuadratkan karena secara eksplisit menangani heteroskedastisitas dan memiliki statistik dengan interpretasi yang jelas tanpa kuadrat.
+
+
+## 3. Penentuan Model
+
+```{r}
+library(fGarch)
+library(tseries)
+acf(resid2, main = "ACF Residu Kuadrat", lag.max = 36)
+pacf(resid2, main = "PACF Residu Kuadrat", lag.max = 36)
+```
+
+Dari grafik diperoleh model yang cocok adalah :
+1. GARCH(3,1)
+2. GARCH(3,0)
+3. GARCH(1,1) (Dipilih karena parsimoni)
+
+```{r}
+mod_h1 <- garchFit(residual ~ garch(3, 1), data = residual, trace = F,
+include.mean = F)
+mod_h2 <- garchFit(residual ~ garch(3, 0), data = residual, trace = F,
+include.mean = F)
+mod_h3 <- garchFit(residual ~ garch(1, 1), data = residual, trace = F,
+include.mean = F)
+
+# Jalankan kode berikut untuk melihat ikhtisar model yang sudah
+# dispesifikasikan di atas. Tidak dicetak untuk mengurangi
+# jumlah halaman modul.
+# summary(mod_h1)
+summary(mod_h1)
+# summary(mod_h2)
+summary(mod_h2)
+# summary(mod_h3)
+summary(mod_h3)
+```
+
+## 4. Forecast
+
+Pada bagian ini akan dilakukan forecasting dengan model gabungan ARMA(0,0) dengan GARCH(1,1)
+
+```{r}
+
+m1 <- garchFit(ts_data ~ arma(0, 0) + garch(1, 1), data = ts_data,
+trace = F)
+summary(m1)
+
+fc_h <- predict(m1, n.ahead = 10, plot = TRUE, conf = 0.95, nx = length(ts_data))
+
+fc_h
+```
+
+**Jurnal Praktikum 4**
+
+Cermati dengan saksama alur pemodelan yang sudah dipaparkan.
+1. Lengkapi alur pemodelan yang belum dilakukan sejauh ini.
+2. Simpulkan hasil akhir pemodelan harga Doge Coin.
+3. Berikan saran yang sesuai dengan hasil akhir pemodelan yang dilakukan
+
+**Lengkapi Alur Pemodelan**
+
+Berdasarkan kode yang diberikan, berikut adalah langkah-langkah untuk melengkapi alur pemodelan:
+
+**1. Interpretasi Hasil Model:**
+
+* **Model h1 (GARCH(3, 1)):**
+
+* **ARCH(3):** Menunjukkan bahwa volatilitas error bergantung pada 3 error kuadrat sebelumnya.
+
+* **GARCH(1, 1):** Menunjukkan bahwa volatilitas error saat ini bergantung pada 1 volatilitas error kuadrat sebelumnya dan 1 error kuadrat sebelumnya.
+
+* **Nilai koefisien yang signifikan:** Menunjukkan bahwa model ini memiliki daya jelaskan yang baik terhadap volatilitas error.
+
+**Model h2 (GARCH(3, 0)):**
+
+* **ARCH(3):** Sama seperti model h1.
+
+* **Tidak ada GARCH(1):** Menunjukkan bahwa volatilitas error saat ini tidak bergantung pada volatilitas error kuadrat sebelumnya.
+
+* **Nilai koefisien yang signifikan:** Menunjukkan bahwa model ini memiliki daya jelaskan yang baik terhadap volatilitas error.
+
+**Model h3 (GARCH(1, 1)):**
+
+* **ARCH(1):** Menunjukkan bahwa volatilitas error bergantung pada 1 error kuadrat sebelumnya.
+
+* **GARCH(1, 1):** Sama seperti model h1.
+
+* **Nilai koefisien yang signifikan:** Menunjukkan bahwa model ini memiliki daya jelaskan yang baik terhadap volatilitas error.
+
+**2. Forecasting:**
+
+* Model ARMA(0, 0) - GARCH(1, 1) dipilih untuk forecasting.
+
+* Model ini menunjukkan bahwa tidak ada autokorelasi pada error dan volatilitas error bergantung pada 1 volatilitas error kuadrat sebelumnya dan 1 error kuadrat sebelumnya.
+
+* Hasil forecasting menunjukkan prediksi harga Doge Coin 10 periode ke depan dengan interval kepercayaan 95%.
+
+**3. Simpulan:**
+
+Berdasarkan hasil pemodelan, dapat disimpulkan bahwa:
+
+* Volatilitas harga Doge Coin menunjukkan pola heteroskedastik, di mana volatilitas error tidak konstan dan bergantung pada error dan volatilitas error sebelumnya.
+
+* Model ARMA(0, 0) - GARCH(1, 1) memberikan daya jelaskan yang baik terhadap volatilitas harga Doge Coin.
+
+* Prediksi harga Doge Coin 10 periode ke depan menunjukkan potensi kenaikan harga, namun dengan interval kepercayaan yang cukup lebar.
+
+**4. Saran:**
+Berdasarkan alur pemodelan yang telah dipaparkan, berikut beberapa saran yang dapat diberikan:
+
+**Pemilihan Model:**
+
+* **ARMA(0,0)-GARCH(1,1):** Model ini dipilih berdasarkan nilai AIC dan BIC terkecil dibandingkan model lain. Model ini menunjukkan tidak adanya ketergantungan autoregresif pada rata-rata residual, namun terdapat ketergantungan heteroskedastik bersyarat pada residual.
+
+* **GARCH(3,1):** Model ini memiliki nilai log-likelihood tertinggi, namun memiliki nilai AIC dan BIC yang lebih besar dibandingkan ARMA(0,0)-GARCH(1,1). Hal ini menunjukkan bahwa model GARCH(3,1) mungkin terlalu kompleks dan tidak seefisien ARMA(0,0)-GARCH(1,1).
+
+* **GARCH(3,0):** Model ini memiliki nilai log-likelihood yang lebih rendah dibandingkan GARCH(3,1), dan nilai AIC dan BIC yang lebih besar dibandingkan ARMA(0,0)-GARCH(1,1). Hal ini menunjukkan bahwa model GARCH(3,0) tidak seefisien ARMA(0,0)-GARCH(1,1) dan 
+GARCH(3,1).
+
+* **ARMA(1,1)-GARCH(1,1):** Model ini tidak dibahas dalam kode yang disediakan, namun dapat dipertimbangkan sebagai alternatif. Model ini menyertakan ketergantungan autoregresif pada rata-rata residual, serta ketergantungan heteroskedastik bersyarat pada residual.
+
+**Forecasting:**
+
+* Model ARMA(0,0)-GARCH(1,1) digunakan untuk forecasting 10 periode ke depan. Model ini menghasilkan prediksi beserta interval kepercayaan 95%.
+
+* Visualisasi prediksi dan interval kepercayaan dapat dilihat pada plot yang dihasilkan.
+
+## 5.Penutup
+
+**Jurnal Praktikum 5**
+Lakukan pemodelan untuk data berikut. Data berikut adalah data harga bulanan emas murni
+Berikan kesimpulan hasil akhir pemodelan yang Anda lakukan.
+
+## 7 Pengayaan: Valuasi Harga Opsi Dengan Simulasi Monte Carlo
+
+### 7.1 Simulasi Monte Carlo
+
+```{r}
+# Inisialisasi variabel untuk simulasi
+data_return <- diff(log(data$Close))
+sd_return <- sd(data_return)
+omega <- mod_h3@fit$matcoef[1]
+alpha_1 <- mod_h3@fit$matcoef[2]
+beta_1 <- mod_h3@fit$matcoef[3]
+garch_11 <- function(sd_data_prev, data_prev) {
+sigma_t <- sqrt(omega + alpha_1 * data_prev^2 + beta_1 * sd_data_prev^2)
+data_t <- sigma_t * rnorm(n = 1, mean = 0, sd = 1)
+return(list(sigma_new = sigma_t, data_new = data_t))
+}
+
+hasil_simulasi <- matrix(0, 1000, 10) # Menyimpan data pada matriks
+for (ukuran_simulasi in 1:1000) {
+data_sim <- tail(data_return, n = 1)
+sd_sim <- sd(data_return)
+for (t in 244:253) {
+garch_sim <- garch_11(sd_sim, tail(data_sim, n = 1))
+sd_sim <- garch_sim$sigma_new
+data_sim <- c(data_sim, garch_sim$data_new)
+}
+dummy <- tail(data_sim, n = 10)
+hasil_simulasi[ukuran_simulasi, 1:10] <- dummy
+}
+```
+
+### 7.2 Analisis Simulasi Monte Carlo
+
+Pada bagian ini akan dihitung beberapa nilai statistik (empiris) yang dipandang penting, diantaranya
+adalah:
+1. rataan,
+2. standar deviasi,
+3. median,
+4. persentil ke-90, dan
+5. persentil ke-95.
+
+```{r}
+statistik <- data.frame(row.names = c("Rataan", "Stdev", "Median",
+"Persentil90", "Persentil95"))
+for (i in 1:10) {
+statistik[1, i] <- mean(hasil_simulasi[1:1000, i])
+statistik[2, i] <- sd(hasil_simulasi[1:1000, i])
+statistik[3, i] <- median(hasil_simulasi[1:1000, i])
+statistik[4, i] <- quantile(hasil_simulasi[1:1000, i], probs = 0.9)
+statistik[5, i] <- quantile(hasil_simulasi[1:1000, i], probs = 0.95)
+}
+statistik
+```
+
+### 7.3 Persamaan Black-Scholes
+
+```{r}
+# Inisialisasi variabel untuk simulasi
+data_return <- diff(log(data$Close))
+sd_return <- sd(data_return)
+omega <- mod_h3@fit$matcoef[1]
+alpha_1 <- mod_h3@fit$matcoef[2]
+beta_1 <- mod_h3@fit$matcoef[3]
+
+# Black-Scholes function
+dnorm <- function(x) {
+  # Function for standard normal probability density
+  return(1/sqrt(2*pi) * exp(-x^2/2))
+}
+
+BlackScholes <- function(Spot, Strike, Time, r, sigma) {
+  # Black-Scholes formula for Call option price (adjust for Put if needed)
+  d1 <- (log(Spot / Strike) + (r + sigma^2 / 2) * Time) / (sigma * sqrt(Time))
+  d2 <- d1 - sigma * sqrt(Time)
+  CallPrice <- Spot * pnorm(d1) - Strike * exp(-r * Time) * pnorm(d2)
+  return(CallPrice)
+}
+
+garch_11 <- function(sd_data_prev, data_prev) {
+  sigma_t <- sqrt(omega + alpha_1 * data_prev^2 + beta_1 * sd_data_prev^2)
+  data_t <- sigma_t * rnorm(n = 1, mean = 0, sd = 1)
+  return(list(sigma_new = sigma_t, data_new = data_t))
+}
+
+hasil_simulasi <- matrix(0, 1000, 11) # Add a column for option price
+
+for (ukuran_simulasi in 1:1000) {
+  data_sim <- tail(data_return, n = 1)
+  sd_sim <- sd(data_return)
+  for (t in 244:253) {
+    garch_sim <- garch_11(sd_sim, tail(data_sim, n = 1))
+    sd_sim <- garch_sim$sigma_new
+    data_sim <- c(data_sim, garch_sim$data_new)
+  }
+  # Add Black-Scholes calculation using the last simulated data point
+  Spot <- tail(data$Close, n = 1) # Replace with your actual spot price
+  Strike <- 100 # Replace with your desired strike price
+  Time <- 1/252 # Adjust for your desired time horizon in years
+  r <- 0.05 # Replace with your risk-free interest rate
+  sigma <- sd_sim
+  CallPrice <- BlackScholes(Spot, Strike, Time, r, sigma)
+  dummy <- tail(data_sim, n = 10)
+  hasil_simulasi[ukuran_simulasi, 1:10] <- dummy
+  hasil_simulasi[ukuran_simulasi, 11] <- CallPrice
+}
+summary(hasil_simulasi)
+```
+
+**Jurnal Praktikum 6**
+
+```{r}
+# Inisialisasi variabel untuk simulasi
+data_return <- diff(log(data$Close))
+sd_return <- sd(data_return)
+omega <- mod_h3@fit$matcoef[1]
+alpha_1 <- mod_h3@fit$matcoef[2]
+beta_1 <- mod_h3@fit$matcoef[3]
+garch_11 <- function(sd_data_prev, data_prev) {
+sigma_t <- sqrt(omega + alpha_1 * data_prev^2 + beta_1 * sd_data_prev^2)
+data_t <- sigma_t * rnorm(n = 1, mean = 0, sd = 1)
+return(list(sigma_new = sigma_t, data_new = data_t))
+}
+
+hasil_simulasi <- matrix(0, 1000, 10) # Menyimpan data pada matriks
+for (ukuran_simulasi in 1:1000) {
+data_sim <- tail(data_return, n = 1)
+sd_sim <- sd(data_return)
+for (t in 245:253) {
+garch_sim <- garch_11(sd_sim, tail(data_sim, n = 1))
+sd_sim <- garch_sim$sigma_new
+data_sim <- c(data_sim, garch_sim$data_new)
+}
+dummy <- tail(data_sim, n = 10)
+hasil_simulasi[ukuran_simulasi, 1:10] <- dummy
+}
+
+statistik <- data.frame(row.names = c("Rataan", "Stdev", "Median",
+"Persentil90", "Persentil95"))
+for (i in 1:10) {
+statistik[1, i] <- mean(hasil_simulasi[1:1000, i])
+statistik[2, i] <- sd(hasil_simulasi[1:1000, i])
+statistik[3, i] <- median(hasil_simulasi[1:1000, i])
+statistik[4, i] <- quantile(hasil_simulasi[1:1000, i], probs = 0.9)
+statistik[5, i] <- quantile(hasil_simulasi[1:1000, i], probs = 0.95)
+}
+statistik
+```
+
+```{r}
+# Inisialisasi variabel untuk simulasi
+data_return <- diff(log(data$Close))
+sd_return <- sd(data_return)
+omega <- mod_h3@fit$matcoef[1]
+alpha_1 <- mod_h3@fit$matcoef[2]
+beta_1 <- mod_h3@fit$matcoef[3]
+
+# Black-Scholes function
+dnorm <- function(x) {
+  # Function for standard normal probability density
+  return(1/sqrt(2*pi) * exp(-x^2/2))
+}
+
+BlackScholes <- function(Spot, Strike, Time, r, sigma) {
+  # Black-Scholes formula for Call option price (adjust for Put if needed)
+  d1 <- (log(Spot / Strike) + (r + sigma^2 / 2) * Time) / (sigma * sqrt(Time))
+  d2 <- d1 - sigma * sqrt(Time)
+  CallPrice <- Spot * pnorm(d1) - Strike * exp(-r * Time) * pnorm(d2)
+  return(CallPrice)
+}
+
+garch_11 <- function(sd_data_prev, data_prev) {
+  sigma_t <- sqrt(omega + alpha_1 * data_prev^2 + beta_1 * sd_data_prev^2)
+  data_t <- sigma_t * rnorm(n = 1, mean = 0, sd = 1)
+  return(list(sigma_new = sigma_t, data_new = data_t))
+}
+
+hasil_simulasi <- matrix(0, 1000, 11) # Add a column for option price
+
+for (ukuran_simulasi in 1:1000) {
+  data_sim <- tail(data_return, n = 1)
+  sd_sim <- sd(data_return)
+  for (t in 245:253) {
+    garch_sim <- garch_11(sd_sim, tail(data_sim, n = 1))
+    sd_sim <- garch_sim$sigma_new
+    data_sim <- c(data_sim, garch_sim$data_new)
+  }
+  # Add Black-Scholes calculation using the last simulated data point
+  Spot <- tail(data$Close, n = 1) # Replace with your actual spot price
+  Strike <- 100 # Replace with your desired strike price
+  Time <- 1/252 # Adjust for your desired time horizon in years
+  r <- 0.05 # Replace with your risk-free interest rate
+  sigma <- sd_sim
+  CallPrice <- BlackScholes(Spot, Strike, Time, r, sigma)
+  dummy <- tail(data_sim, n = 10)
+  hasil_simulasi[ukuran_simulasi, 1:10] <- dummy
+  hasil_simulasi[ukuran_simulasi, 11] <- CallPrice
+}
+summary(hasil_simulasi)
+```
+
+# DATA HARGA EMAS
+
+## 1. EDA
+
+Pada bagian ini, sari numerik dari data akan dihitung. Diagram garis juga ditunjukkan.
+
+```{r}
+library(readr)
+library(tseries)
+library(forecast)
+# Memanggil Data
+data <- read_csv("Set Data Gold.csv", col_types = cols(date = col_date(format = "%d/%m/%Y")))
+plot(data$date, data$price, type = "l", main = "Harga Emas, \n Januari 1950-Januari 2018",
+xlab = "Tanggal", ylab = "Gold")
+# Membuat garis rataan
+abline(h = mean(data$price), lwd = 2, lty = 2, col = "red")
+# Statistik Deskriptif
+summary(data$price)
+ts_data <- ts(diff(log(data$price)))
+plot(ts_data, type = "l", main = "Harga Emas. \n April Januari 1950-Januari 2018",
+xlab = "Tanggal", ylab = "Gold")
+abline(h = mean(ts_data), lwd = 2, lty = 2, col = "red")
+
+# Statistik Deskriptif
+summary(ts_data)
+
+acf(ts_data, main = "ACF Harga Emas", lag.max = 36)
+adf.test(ts_data)
+
+ts_train <- ts_data[1:(floor(0.8 * length(ts_data)))]
+ts_validation <- ts_data[ceiling(0.8 * length(ts_data)):length(ts_data)]
+acf(ts_train, main = "ACF Data", lag.max = 36)
+pacf(ts_train, main = "PACF Data", lag.max = 36)
+
+mod <- auto.arima(ts_data, max.q = 0, allowmean = TRUE, allowdrift = TRUE,
+method = "ML")
+fc <- forecast(ts_data, model = mod, h = 10)
+plot(fc)
+```
+
+**Jurnal Praktikum 1**
+
+**ARIMA(3,0,0) untuk data log-return bisa menjadi model yang wajar.**  Berikut argumennya:
+
+**Alasan ARIMA(3,0,0) bisa wajar:**
+
+* max.q = 0 **membatasi pencarian parameter moving average (MA) ke 0.** Ini berarti model hanya mempertimbangkan pola autoregressive (AR) dalam data.
+* **Data log-return seringkali mendekati white noise (derau putih)** setelah diubah menjadi stasioner. White noise adalah data acak tanpa pola yang berarti.
+
+* **ARIMA(3,0,0) menangkap pola autoregressive hingga orde ke-3** dalam data. Jika pola autoregressive yang dominan ada dalam 3 lag pertama, maka model ini bisa cukup baik.
+
+Kesimpulannya adalah ARIMA(3,0,0) bisa menjadi model yang wajar untuk data log-return jika data mendekati white noise dan pola autoregressive yang dominan ada dalam 3 lag pertama.  Namun, penting untuk melakukan analisis lanjutan seperti memeriksa ACF/PACF dan mengevaluasi performa model untuk memvalidasi kesesuaiannya.
+
+
+```{r}
+checkresiduals(mod)
+```
+
+## 2. Model Heteroskedastis
+
+```{r}
+library(nortest)
+library(tseries)
+residual <- residuals(mod, standardize = T)
+# QQ Plot
+qqnorm(residual)
+qqline(residual)
+
+# Uji Saphiro-Wilk
+shapiro.test(residual)
+
+# Uji Anderson-Darling
+ad.test(residual)
+```
+
+**Jurnal Praktikum 2**
+
+**Uji Box-Pierce**
+
+**Hipotesis:**
+
+* H0: Tidak ada autokorelasi residual pada lag apa pun.
+* H1: Ada autokorelasi residual pada setidaknya satu lag.
+
+**Statistik Uji:**
+
+* Statistik Q (Box-Pierce): Dihitung berdasarkan jumlah kuadrat autokorelasi residual hingga lag yang ditentukan.
+
+**Syarat Pengambilan Keputusan :**
+
+* Tolak H0 jika nilai p-value < α (tingkat signifikansi).
+
+* Jika H0 ditolak, interpretasikan autokorelasi residual pada lag yang signifikan berdasarkan nilai ACF (autocorrelation function).
+
+**Uji ARCH Engel**
+
+**Hipotesis:**
+
+* H0: Tidak ada heteroskedastisitas ARCH (autoregressive conditional heteroskedasticity) dalam residual.
+* H1: Ada heteroskedastisitas ARCH dalam residual.
+
+**Statistik Uji:**
+
+* Statistik LM (Lagrange Multiplier): Dihitung berdasarkan regresi kuadrat residual pada lag residual yang tertinggal.
+
+**Syarat Pengambilan Keputusan :**
+
+* Tolak H0 jika nilai p-value < α (tingkat signifikansi)
+
+* Jika H0 ditolak, interpretasikan pola heteroskedastisitas ARCH berdasarkan nilai ARCH LM test.
+
+```{r}
+library(FinTS)
+resid1 <- residual^2
+plot(resid1, main = "Grafik Galat Kuadrat", type = "l")
+
+Box.test(resid1, lag = 12)
+
+ArchTest(residual)
+```
+
+**Jurnal Praktikum 3**
+
+ Untuk uji Box-Ljung diperlukan residual yang  dikuadaratkan  karena membantu menstabilkan variansinya, meningkatkan sensitivitas tes, dan memudahkan interpretasi statistik. Uji ARCH, di sisi lain, tidak memerlukan residual yang dikuadratkan karena secara eksplisit menangani heteroskedastisitas dan memiliki statistik dengan interpretasi yang jelas tanpa kuadrat.
+
+## 3. Penentuan Model
+
+```{r}
+library(fGarch)
+library(tseries)
+acf(resid1, main = "ACF Residu Kuadrat", lag.max = 36)
+pacf(resid1, main = "PACF Residu Kuadrat", lag.max = 36)
+```
+
+
+Dari grafik diperoleh model yang cocok adalah :
+1. GARCH(2,1)
+2. GARCH(1,2)
+3. GARCH(1,1) 
+
+```{r}
+mod_h1 <- garchFit(residual ~ garch(2, 1), data = residual, trace = F,
+include.mean = F)
+mod_h2 <- garchFit(residual ~ garch(1, 2), data = residual, trace = F,
+include.mean = F)
+mod_h3 <- garchFit(residual ~ garch(1, 1), data = residual, trace = F,
+include.mean = F)
+
+# Jalankan kode berikut untuk melihat ikhtisar model yang sudah
+# dispesifikasikan di atas. Tidak dicetak untuk mengurangi
+# jumlah halaman modul.
+# summary(mod_h1)
+summary(mod_h1)
+# summary(mod_h2)
+summary(mod_h2)
+# summary(mod_h3)
+summary(mod_h3)
+```
+
+
+## 4. Forecast
+
+Pada bagian ini akan dilakukan forecasting dengan model gabungan ARMA(3,0) dengan GARCH(1,1)
+
+```{r}
+library(forecast)
+
+m1 <- garchFit(ts_data ~ arma(0, 0) + garch(1, 1), data = ts_data,
+trace = F)
+summary(m1)
+
+fc_h <- predict(m1, n.ahead = 10, plot = TRUE, conf = 0.95, nx = length(ts_data))
+
+fc_h
+```
+
+**Jurnal Praktikum 4**
+
+**Analisis Harga Emas dengan Pendekatan ARIMA-GARCH**
+
+Berdasarkan kode yang diberikan, berikut adalah kelanjutan analisis harga Emas dengan pendekatan ARIMA-GARCH:
+
+**1. Melengkapi Alur Pemodelan**
+
+**Uji Heteroskedastisitas:**
+
+**Uji ARCH :**
+
+* H0 : Galatia homoskedastik.
+
+* Ha : Heteroskedastisitas Galatia.
+
+*Tolak H0 jika p-value < 0.05.
+
+**Uji  Ljung-Box :**
+
+* H0: Tidak ada autokorelasi pada galat kuadrat.
+
+* Ha: Ada autokorelasi pada galat kuadrat.
+
+* Tolak H0 jika p-value < 0.05.
+
+**Pemilihan Model GARCH:**
+
+* Bandingkan nilai AIC, BIC, dan log-likelihood dari beberapa model GARCH (misalnya, GARCH(1,1), GARCH(2,1), GARCH(1,2)) untuk memilih model terbaik.
+
+**2. Simpulan Hasil Akhir Pemodelan**
+
+**Model ARIMA:**
+
+* ARIMA(3,0,0) dipilih karena tidak ditemukan autokorelasi pada selisih log harga emas.
+
+* Model ini menunjukkan bahwa harga emas tidak memiliki tren dan tidak ada autokorelasi pada selisih log harga emas.
+
+**Model GARCH:**
+
+* Model GARCH(1,1) dipilih berdasarkan nilai AIC,BIC,dan kemungkinan log terendah.
+
+* Model ini menunjukkan bahwa galat dari model ARIMA heteroskedastik dan memiliki autokorelasi pada galat kuadrat orde pertama.
+
+**Prediksi Harga Emas:**
+
+* Model GARCH(1,1) digunakan untuk memprediksi harga emas 10 periode ke depan.
+
+* Prediksi menunjukkan bahwa harga emas akan cenderung berfluktuasi di sekitar nilai rata-rata dengan tren sedikit menurun.
+
+**3. Saran Berdasarkan Hasil Pemodelan**
+
+* Perlu diingat bahwa model ini hanya berdasarkan data historis dan tidak dapat menjamin akurasi prediksi di masa depan.
+
+* Faktor lain yang dapat mempengaruhi harga emas, seperti kondisi ekonomi dan geopolitik,tidak dipertimbangkan dalam model ini.
+
+* Sebaiknya mempertimbangkan faktor-faktor lain ini sebelum mengambil keputusan investasi berdasarkan prediksi model ini.
+
+
+## 5 Penutup
+
+**KESIMPULAN**
+
+ Analisis harga Emas dengan pendekatan ARIMA-GARCH menunjukkan bahwa harga emas tidak memiliki tren dan tidak ada autokorelasi pada selisih log harga emas.Namun, galat dari model ARIMA heteroskedastik dan memiliki autokorelasi pada galat kuadrat orde pertama.Model GARCH(1,1) dapat digunakan untuk memprediksi harga emas 10 periode ke depan dengan mempertimbangkan heteroskedastisitas dan autokorelasi pada galat. Perlu diingat bahwa prediksi ini tidak pasti dan harus dipertimbangkan dengan hati-hati sebelum mengambil keputusan investasi.
+
+## 7 Pengayaan: Valuasi Harga Opsi Dengan Simulasi Monte Carlo
+
+### 7.1 Simulasi Monte Carlo
+
+```{r}
+# Inisialisasi variabel untuk simulasi
+data_return <- diff(log(data$price))
+sd_return <- sd(data_return)
+omega <- mod_h3@fit$matcoef[1]
+alpha_1 <- mod_h3@fit$matcoef[2]
+beta_1 <- mod_h3@fit$matcoef[3]
+garch_11 <- function(sd_data_prev, data_prev) {
+sigma_t <- sqrt(omega + alpha_1 * data_prev^2 + beta_1 * sd_data_prev^2)
+data_t <- sigma_t * rnorm(n = 1, mean = 0, sd = 1)
+return(list(sigma_new = sigma_t, data_new = data_t))
+}
+
+hasil_simulasi <- matrix(0, 1000, 10) # Menyimpan data pada matriks
+for (ukuran_simulasi in 1:1000) {
+data_sim <- tail(data_return, n = 1)
+sd_sim <- sd(data_return)
+for (t in 244:253) {
+garch_sim <- garch_11(sd_sim, tail(data_sim, n = 1))
+sd_sim <- garch_sim$sigma_new
+data_sim <- c(data_sim, garch_sim$data_new)
+}
+dummy <- tail(data_sim, n = 10)
+hasil_simulasi[ukuran_simulasi, 1:10] <- dummy
+}
+```
+
+### 7.2 Analisis Simulasi Monte Carlo
+Pada bagian ini akan dihitung beberapa nilai statistik (empiris) yang dipandang penting, diantaranya
+adalah:
+1. rataan,
+2. standar deviasi,
+3. median,
+4. persentil ke-90, dan
+5. persentil ke-95.
+
+```{r}
+statistik <- data.frame(row.names = c("Rataan", "Stdev", "Median",
+"Persentil90", "Persentil95"))
+for (i in 1:10) {
+statistik[1, i] <- mean(hasil_simulasi[1:1000, i])
+statistik[2, i] <- sd(hasil_simulasi[1:1000, i])
+statistik[3, i] <- median(hasil_simulasi[1:1000, i])
+statistik[4, i] <- quantile(hasil_simulasi[1:1000, i], probs = 0.9)
+statistik[5, i] <- quantile(hasil_simulasi[1:1000, i], probs = 0.95)
+}
+statistik
+```
+
+### 7.3 Persamaan Black-Scholes
+
+```{r}
+# Inisialisasi variabel untuk simulasi
+data_return <- diff(log(data$price))
+sd_return <- sd(data_return)
+omega <- mod_h3@fit$matcoef[1]
+alpha_1 <- mod_h3@fit$matcoef[2]
+beta_1 <- mod_h3@fit$matcoef[3]
+
+# Black-Scholes function
+dnorm <- function(x) {
+  # Function for standard normal probability density
+  return(1/sqrt(2*pi) * exp(-x^2/2))
+}
+
+BlackScholes <- function(Spot, Strike, Time, r, sigma) {
+  # Black-Scholes formula for Call option price (adjust for Put if needed)
+  d1 <- (log(Spot / Strike) + (r + sigma^2 / 2) * Time) / (sigma * sqrt(Time))
+  d2 <- d1 - sigma * sqrt(Time)
+  CallPrice <- Spot * pnorm(d1) - Strike * exp(-r * Time) * pnorm(d2)
+  return(CallPrice)
+}
+
+garch_11 <- function(sd_data_prev, data_prev) {
+  sigma_t <- sqrt(omega + alpha_1 * data_prev^2 + beta_1 * sd_data_prev^2)
+  data_t <- sigma_t * rnorm(n = 1, mean = 0, sd = 1)
+  return(list(sigma_new = sigma_t, data_new = data_t))
+}
+
+hasil_simulasi <- matrix(0, 1000, 11) # Add a column for option price
+
+for (ukuran_simulasi in 1:1000) {
+  data_sim <- tail(data_return, n = 1)
+  sd_sim <- sd(data_return)
+  for (t in 244:253) {
+    garch_sim <- garch_11(sd_sim, tail(data_sim, n = 1))
+    sd_sim <- garch_sim$sigma_new
+    data_sim <- c(data_sim, garch_sim$data_new)
+  }
+  # Add Black-Scholes calculation using the last simulated data point
+  Spot <- tail(data$price, n = 1) # Replace with your actual spot price
+  Strike <- 100 # Replace with your desired strike price
+  Time <- 1/252 # Adjust for your desired time horizon in years
+  r <- 0.05 # Replace with your risk-free interest rate
+  sigma <- sd_sim
+  CallPrice <- BlackScholes(Spot, Strike, Time, r, sigma)
+  dummy <- tail(data_sim, n = 10)
+  hasil_simulasi[ukuran_simulasi, 1:10] <- dummy
+  hasil_simulasi[ukuran_simulasi, 11] <- CallPrice
+}
+summary(hasil_simulasi)
+```
+
+**Jurnal Praktikum 6**
+
+
+```{r}
+# Inisialisasi variabel untuk simulasi
+data_return <- diff(log(data$price))
+sd_return <- sd(data_return)
+omega <- mod_h3@fit$matcoef[1]
+alpha_1 <- mod_h3@fit$matcoef[2]
+beta_1 <- mod_h3@fit$matcoef[3]
+garch_11 <- function(sd_data_prev, data_prev) {
+sigma_t <- sqrt(omega + alpha_1 * data_prev^2 + beta_1 * sd_data_prev^2)
+data_t <- sigma_t * rnorm(n = 1, mean = 0, sd = 1)
+return(list(sigma_new = sigma_t, data_new = data_t))
+}
+
+hasil_simulasi <- matrix(0, 1000, 10) # Menyimpan data pada matriks
+for (ukuran_simulasi in 1:1000) {
+data_sim <- tail(data_return, n = 1)
+sd_sim <- sd(data_return)
+for (t in 245:253) {
+garch_sim <- garch_11(sd_sim, tail(data_sim, n = 1))
+sd_sim <- garch_sim$sigma_new
+data_sim <- c(data_sim, garch_sim$data_new)
+}
+dummy <- tail(data_sim, n = 10)
+hasil_simulasi[ukuran_simulasi, 1:10] <- dummy
+}
+
+statistik <- data.frame(row.names = c("Rataan", "Stdev", "Median",
+"Persentil90", "Persentil95"))
+for (i in 1:10) {
+statistik[1, i] <- mean(hasil_simulasi[1:1000, i])
+statistik[2, i] <- sd(hasil_simulasi[1:1000, i])
+statistik[3, i] <- median(hasil_simulasi[1:1000, i])
+statistik[4, i] <- quantile(hasil_simulasi[1:1000, i], probs = 0.9)
+statistik[5, i] <- quantile(hasil_simulasi[1:1000, i], probs = 0.95)
+}
+statistik
+```
+
+```{r}
+# Normalisasi data Doge Coin
+normalized_doge <- (doge_data$Price - mean_doge) / sd_doge
+
+```
+
+
+
+```{r}
+# Inisialisasi variabel untuk simulasi
+data_return <- diff(log(data$price))
+sd_return <- sd(data_return)
+omega <- mod_h3@fit$matcoef[1]
+alpha_1 <- mod_h3@fit$matcoef[2]
+beta_1 <- mod_h3@fit$matcoef[3]
+
+# Black-Scholes function
+dnorm <- function(x) {
+  # Function for standard normal probability density
+  return(1/sqrt(2*pi) * exp(-x^2/2))
+}
+
+BlackScholes <- function(Spot, Strike, Time, r, sigma) {
+  # Black-Scholes formula for Call option price (adjust for Put if needed)
+  d1 <- (log(Spot / Strike) + (r + sigma^2 / 2) * Time) / (sigma * sqrt(Time))
+  d2 <- d1 - sigma * sqrt(Time)
+  CallPrice <- Spot * pnorm(d1) - Strike * exp(-r * Time) * pnorm(d2)
+  return(CallPrice)
+}
+
+garch_11 <- function(sd_data_prev, data_prev) {
+  sigma_t <- sqrt(omega + alpha_1 * data_prev^2 + beta_1 * sd_data_prev^2)
+  data_t <- sigma_t * rnorm(n = 1, mean = 0, sd = 1)
+  return(list(sigma_new = sigma_t, data_new = data_t))
+}
+
+hasil_simulasi <- matrix(0, 1000, 11) # Add a column for option price
+
+for (ukuran_simulasi in 1:1000) {
+  data_sim <- tail(data_return, n = 1)
+  sd_sim <- sd(data_return)
+  for (t in 245:253) {
+    garch_sim <- garch_11(sd_sim, tail(data_sim, n = 1))
+    sd_sim <- garch_sim$sigma_new
+    data_sim <- c(data_sim, garch_sim$data_new)
+  }
+  # Add Black-Scholes calculation using the last simulated data point
+  Spot <- tail(data$price, n = 1) # Replace with your actual spot price
+  Strike <- 100 # Replace with your desired strike price
+  Time <- 1/252 # Adjust for your desired time horizon in years
+  r <- 0.05 # Replace with your risk-free interest rate
+  sigma <- sd_sim
+  CallPrice <- BlackScholes(Spot, Strike, Time, r, sigma)
+  dummy <- tail(data_sim, n = 10)
+  hasil_simulasi[ukuran_simulasi, 1:10] <- dummy
+  hasil_simulasi[ukuran_simulasi, 11] <- CallPrice
+}
+summary(hasil_simulasi)
+```

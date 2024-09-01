@@ -1,0 +1,285 @@
+---
+title: "pratikum_3 AK-281 ADW"
+author: "Kevin Synagogue Panjaitan 10023481"
+date: "2024-03-30"
+output:
+  html_document:
+    theme: darkly
+    highlight: tango
+    df_print: paged
+---
+
+```{r}
+
+library(tseries)
+library(tidyverse)
+library(lmtest)
+library(forecast)
+library(readxl)
+library(TSA)
+
+```
+# EDA (Explorasi data )
+
+```{r}
+# Memanggil Data
+data <- read_csv("day1.csv", col_types = cols(dteday = col_date(format = "%m/%d/%Y")))
+```
+```{r}
+
+plot(data$dteday,data$casual,type = "l",xlab = "tanggal",ylab = "casual", main = "data casual",color = "crimson")
+abline(h = mean(data$casual),col = "red",lty = 2, lwd = 2)
+
+
+```
+# untuk menentukan fekuensi model musimnan 
+
+```{r}
+ts_data <- ts(data$casual)
+y_t <- periodogram(ts_data, main = "Grafik Periodogram dari Data")
+
+# Memperoleh frekuensi yang dominan
+freq <- y_t$freq
+periodogram <- y_t$spec
+dominan <- freq[which(periodogram %in% sort(periodogram, decreasing = T)[1:2])]
+periode <- 1/dominan
+periode
+```
+
+# Jurnal 1
+
+1. jelas akan dipilih s = 7 karna terlihat di kasus pengujikan yang kita lakukan dengan Sprectal analisis yang kita 
+langsung dapat dengan library TSA didapatkan dengan pembultan pengujian   6.967742 ~ 7 
+
+
+
+# data deskripsi
+
+```{r}
+
+summary(data$casual)
+
+```
+
+```{r}
+acf(data$casual, main = "data acf")
+pacf(data$casual , main = "data pacf")
+```
+
+
+```{r}
+df<- ts(data$casual, frequency = 7) # diperoleh dengan hasil pengujian sprectal analisisnya )
+#plot datanya
+ggseasonplot(df)
+
+```
+
+```{r}
+# plot subseries
+ggsubseriesplot(df)
+```
+
+<p>Ada beberapa yang hal yang untuk pendeteksi pola deret waktu pada gambar yang pertama itu merupakan pola deret waktu yang data asli, pada gambar kedua itu merupakan grafik pola trend dan pada gambar ketika merupkan pola musiman, dan terakhir merupakan pola residu Jadi  Kaitannya dengan pendeteksian pola musiman adalah bahwa komponen musiman dari plot decompose() membantu dalam mengidentifikasi pola-pola periodik dalam data deret waktu. Dengan melihat grafik komponen musiman,</p> 
+
+# persiapkan data 
+
+```{r}
+
+casual <- ts(data$casual,frequency = 7)
+
+casual_tes <- ts(data$casual[1:169],frequency = 7)
+
+casual_valid <- ts(data$casual[169:212],frequency = 7)
+
+
+```
+# Jurnal 3
+<p>Sebenarnya untuk mencari model terbaik kita hanya perlu melakukan pruning data yang menghasilkan akurasi mape yang terkecil. jika datanya sedikit kita tidak pertung melakukan pruning data kita bisa mengambil semua data tes dan valid untuk menghasilkan mape yang terkecil.
+
+```{r}
+y_mean <- mean(casual_tes)
+me_train <- mean((casual_tes - y_mean)/casual_tes)
+me_train
+
+y_mean <- mean(casual_tes)
+mape_train <- mean(abs((casual_tes - y_mean))/casual_tes)
+mape_train
+
+```
+
+# lakukan indentifikasi model
+
+```{r}
+#indentifikasi casual_tee
+adf.test(casual_tes)
+
+#indentifikasi casual_valid
+adf.test(casual_valid)
+
+```
+
+# kita akan lakukan pada model tes diff pada model tersebut
+
+c
+
+#uji adf tes diffresiasi
+
+
+```{r}
+adf.test(casual_tes_diff)
+adf.test(casual_valid_diff)
+```
+# Jurnal 4
+
+<p> Semua tergantung jika datanya  memiliki pola musiman yang jelas, langkah pertama adalah melakukan diferensiasi musiman. Namun, jika pola musiman tidak begitu signifikan atau jika Anda memiliki kecurigaan akan adanya tren dalam data, Anda mungkin perlu melakukan diferensiasi rata-rata terlebih dahulu jadi data tersebut terlihat kita akan melakukan diffrensiasi musiman karna jelas pada plot decompose terlihat plot musiman terlihat begitu jelas unsur-unsur dari masing-masing tren.</p>
+
+
+```{r}
+#plot acf dan pacf dari casual_tes_diff
+acf(casual_tes_diff,main = "plot data acf diffrensiasi")
+pacf(casual_tes_diff,main = "plot data pacf diffrensiasi")
+
+```
+
+
+
+```{r}
+
+mod_1 <- arima(casual_tes, order = c(0, 0, 0), seasonal = list(order = c(4,
+1, 1), period = 7), method = "ML")
+mod_1
+
+mod_auto <- auto.arima(casual_tes, max.p = 4, max.q = 4, max.P = 4,
+max.Q = 4, seasonal = TRUE, stationary = FALSE, allowdrift = FALSE)
+mod_auto
+
+
+```
+```{r}
+
+validation <- forecast(casual_tes, model = mod_auto, h = length(casual_valid))
+actual <- as.vector(casual_valid)
+ape_validation <- abs((as.vector(validation$mean) - actual)/actual)
+mape_validation <- mean(ape_validation)
+mape_validation
+
+
+validation <- forecast(casual_tes, model = mod_auto, h = length(casual_valid))
+actual <- as.vector(casual_valid)
+me_validation <- (as.vector(validation$mean - actual)/actual)
+me_validation <- mean(me_validation)
+me_validation
+
+
+```
+
+# Juranl 5
+
+jika dilihat dari model tersebut terdapat perbedaan mape antara basis model dan model sarima yang kita tentukan pada pengujian basis model didapatkan mape sebesar  2.868353 dan pada model sarima yang kita buat nilai mapenya sebesar 0.3719937 maka dari data tersebut kita tahu model sarima sangat cocok untuk memforcasting data tersebut
+
+kedua dari metode me juga dilihat bahwa pengujian eror dengan menggunakn ME pada basis model terlihat lebih kecil daripada model sarima maka dari itu mungkin kita lebih baik menggunakan metode mape untuk menghitung sebuah eror pada model tersebut
+
+
+
+```{r}
+checkresiduals(mod_auto)
+checkresiduals(mod_1)
+
+```
+
+# Jurnal 6
+
+```{r}
+library(nortest)
+residuals_mod_1 <- residuals(mod_1)
+
+# Uji Kolmogorov-Smirnov
+ks_test_result <- ks.test(residuals_mod_1, "pnorm")
+print(ks_test_result)
+
+# Uji Anderson-Darling
+ad_test_result <- ad.test(residuals_mod_1)
+print(ad_test_result)
+
+# Uji Cramer von Mises
+cv_test_result <- cvm.test(residuals_mod_1)
+print(cv_test_result)
+
+# Uji Shapiro-Wilk
+shapiro_test_result <- shapiro.test(residuals_mod_1)
+print(shapiro_test_result)
+
+```
+
+<p> Maka dapat disimpulkan dari pengujian data diatas data residual tidak berdistribusi normal diliihat dari nilai p value yang kecil </p>
+
+
+```{r}
+fc <- forecast(casual, model = mod_auto, h = 35)
+summary(fc)
+
+```
+
+```{r}
+plot(fc,main = " perkiraan sarima")
+
+```
+
+
+
+# Jurnal Ke 7 bagian Kedua 
+
+
+
+# EDA (Explorasi df )
+
+```{r}
+# Memanggil df
+df <- read_csv("steam_player.csv", col_types = cols(DateTime = col_date(format = "%m/%d/%Y")))
+```
+`
+```{r}
+
+plot(df$Tanggal,df$Users,type = "l",xlab = "tanggal",ylab = "Users", main = "data  Users",color = "crimson")
+abline(h = mean(df$Users),col = "red",lty = 2, lwd = 2)
+
+
+```
+
+
+```{r}
+ts_df <- ts(df$Users)
+y_t <- periodogram(ts_df, main = "Grafik Periodogram dari df")
+
+# Memperoleh frekuensi yang dominan
+freq <- y_t$freq
+periodogram <- y_t$spec
+dominan <- freq[which(periodogram %in% sort(periodogram, decreasing = T)[1:2])]
+periode <- 1/dominan
+periode
+```
+
+# df deskripsi
+
+```{r}
+
+summary(df$Users)
+
+```
+
+```{r}
+acf(df$Users, main = "df User acf")
+pacf(df$Users , main = "df user pacf")
+```
+
+
+```{r}
+df<- ts(df$Users, frequency = 7) # diperoleh dengan hasil pengujian sprectal analisisnya )
+#plot dfnya
+ggseasonplot(df)
+
+```
+
+
+
+

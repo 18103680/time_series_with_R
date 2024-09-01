@@ -1,0 +1,648 @@
+---
+title: "pratikum_2 AK-281 ADW"
+author: "Kevin Synagogue Panjaitan 10023481"
+date: "2024-03-30"
+output:
+  word_document: default
+  html_document:
+    theme: darkly
+    highlight: tango
+    df_print: paged
+---
+<center><span style="font-size: larger;">Model Tak Stasioner </span></center>
+<center><span style="font-size: larger;">Tujuan Pratikum  </span></center>
+
+1. Menganalisis deret waktu dan memodelkannya 
+2. Memahami Langkah-langkah Iterasi box jenkins
+
+
+# Jurnal 1
+
+<p> Data deret waktu yang baik adalah data yang memiliki ukuran setidaknya 50 observasi. Jika kurang
+dari 50 observasi, maka hasil pengolahan data deret waktu dapat menjadi sangat bias  dan juga kita pelu memenuhi kelangkapan suatu data 
+keandalan dan relvansi suatu data </p>
+
+<p> ada beberapa skema alur pemodelan suatu  data yaitu  Analisis data atau (EDA) , Mempersiapkan data atau data prosesing, Indentifikasi suatu model kita tinjau autokorelasi dan autokorelasi parsialnya , estimasi parameter dimana kita mengecek suatu data apakah bias atau konsisten, Uji diagnostik dimana kita mengecek apakaha dia berdistribusi normal, saling bebas dan komoskedastis selanjutnya  penaksiran atau forescasting dimana kita akan menggunkan iterasi Box-Jenkins  </p>
+
+===============================================================================================================================================
+
+# Eda (Studi kassus : data tanjung priok)
+
+```{r}
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(zoo)
+library(tseries)
+
+# Memanggil Data
+#ganti data yang hilang
+data <- read_excel("Data1.xlsx", sheet = "Tanjung Priok", col_types = c("date", "numeric"))
+
+# Menghitung rolling mean 7 hari
+data <- data %>%
+  mutate(rolling_mean_7 = rollmean(`Total Barang (Ton)`, k = 6.5, fill = NA, align = "right"))
+
+# Mengelompokkan data
+df <- data %>%
+  select(Waktu, `Total Barang (Ton)`, rolling_mean_7) %>%
+  gather(key = "variabel", value = "value", -Waktu)
+
+# Membuat grafik data
+ggplot(df, aes(x = Waktu, y = value, group = variabel)) +
+  geom_line(aes(linetype = variabel, color = variabel)) +
+  geom_hline(yintercept = mean(data$`Total Barang (Ton)`), color = "brown1") +
+  scale_linetype_manual(values = c("dashed", "solid", "dashed")) +
+  scale_color_manual(values = c("red", "darkslategrey")) +
+  labs(title = "Grafik Total Barang (Ton) di Tanjung Priok 2006-2020", x = "Waktu", y = "Total Barang (Ton)")
+# Statistik Deskriptif
+summary(data)
+#plot acf data
+
+acf(data$`Total Barang (Ton)`, main = "Grafik ACF Data", lag.max = 36)
+#plot pacf data 
+pacf(data$`Total Barang (Ton)`, main = "Grafik PACF Data", lag.max = 36)
+
+
+```
+
+# Beberapa hal yang didapatkan
+
+<p>1.kualitas dan kelengkapan data  kita pada kode summary(data) kita tau data tersebut lengkap dimana tertera mean dari sebuah data memiliki sebuah nilai yang tertera manandakan data tersebut lengkap dan siap di analisis lebih lanjut</p>
+
+<p>2.Rolling mean adalah cara untuk menghitung rata-rata dari suatu data dalam periode waktu tertentu yang terus bergeser. Ini membantu meratakan fluktuasi harian atau periodik dalam data, memungkinkan kita untuk melihat tren jangka panjang dengan lebih jelas. pada saat rolling mean k = 7  berati menandakan kita menandakan data dalam 7 periode</p>
+
+<p>3.Terdapat pola data pada plot acf pola ma(q) data sini eksponensial menurun</p>
+
+<p>4.pada interpretasi af seperti pola model ma(moving avarange) pada model tersebut plot acf akan cutt off pada lag-q dan 
+pada plot pacf seperti mode autoregresif(ar) dia akan cut off setelah lag (p)</p>
+
+
+
+# Jurnal 2 
+langkah berikutnya data diolah dan kita akan memilih model yagn sedehana yang akan menjadi base model data tersebut.
+
+# Mempersipakan data
+
+```{r}
+#mnegetahui jumlah data 
+# Mengetahui jumlah baris dan kolom dari data frame
+dim_data <- dim(data)
+jumlah_baris <- dim_data[1]
+jumlah_kolom <- dim_data[2]
+
+# Cetak jumlah baris dan kolom
+print(paste("Jumlah baris:", jumlah_baris))
+print(paste("Jumlah kolom:", jumlah_kolom))
+
+```
+
+```{r}
+
+# Membuat data train dan validation dan mengubahnya menjadi data
+# time series
+# Ini dibutuhkan untuk menghasilkan data prediksi
+tpriok <- ts(data$`Total Barang (Ton)`)
+# data yang akan digunakan untuk membuat model
+tpriok_train <- ts(data$`Total Barang (Ton)`, start = c(1), end = c(length(data$`Total Barang (Ton)`)))
+# data yang akan digunakan untuk memvalidasi model
+tpriok_test <-ts(data$`Total Barang (Ton)`, start = c(1), end = c(length(data$`Total Barang (Ton)`)))
+
+```
+
+#menghitung rmse train
+
+```{r}
+y_mean <- mean(tpriok_train)
+rmse_train <- mean((tpriok_train - y_mean)^2)^0.5
+rmse_train
+
+```
+# menghitung mape train
+
+```{r}
+y_mean <- mean(tpriok_train)
+mape_train <- mean(abs((tpriok_train - y_mean))/tpriok_train)
+mape_train
+
+```
+#beberapa yang  didapatkan
+
+<p> 1.karena data kurang dari 3000 maka pengamatan tersebut tidak dapat menyelesaikan masalah pada model berikut dengan pengamatan 3000 kita dapat hasil yang rmse dan mape yang sama </p
+
+<p> 2.kita  dapat membagi data menjadi data pelatihan dan validasi dengan menggunakan persentase dari jumlah total data yang tersedia dalam dataset, maka untuk menghindari ketergantungan pada ukuran sampel kita dapat mencoba berbagai ukuran dataset yang di butuhkan .</p>
+
+<p> 3.Pemilihan rasio yang tepat tergantung pada karakteristik data, kompleksitas model, dan tujuan analisis. Rasio seperti 70:30, 50:50, atau bahkan 99:1 dapat dipertimbangkan tergantung pada kebutuhan spesifik analisis sebuah data.</p>
+
+<p> Untuk interpretasi model dapat diperoleh hasil yang berbeda dengan model di atas asalkan alasan/argumen yang diberikan masih bisa diterima. Model yang baik adalah model yang memiliki sifat parsimoni, yang berarti jika ada 2 buah model yang memiliki performa yang hampir mirip, maka model yang baik adalah model yang paling sederhana atau model dengan parameter yang paling sedikit. Untuk itu perlu dilakukan analisis lebih lanjut seperti melihat signifikansi dari parameter model, nilai AIC (Akaike’s Information Criteria) dari model dan uji diagnostik model pada ketiga kandidat model tersebut.</p>
+
+
+# Jurnal 3 
+ 
+## Estimasi Parameter 
+<p>Dalam melakukan estimasi parameter dapat dilakukan dengan menggunakan autokorelasi parsial ataupun dengan menggunakan metode galat kuadrat terkecil. Pada bagian ini akan dibahas mengenai metode galat kuadrat terkecil untuk model AR(1) dan MA(1)</p>
+
+
+
+```{r}
+# Menghitung uji adf tpriok_train
+uji_adf <- adf.test(tpriok_train)
+uji_adf
+# informasi uji adf
+#cat("\nDickey-Fuller =", uji_adf$statistic, ", p-value =", uji_adf$p.value, "\nalternative hypothesis: stationary\n")
+
+# Plot ACF data dengan lag maksimum 36
+acf(tpriok_train, main = "Grafik ACF Data", lag.max = 36, cex.main = 1.5)
+pacf(tpriok_train, main = "Grafik PACF Data", lag.max = 36, cex.main = 1.5)
+
+```
+
+```{r}
+
+tpriok_train_diff <- diff(tpriok_train)
+#uji adf tpriok_train_diff
+
+uji_adf_dif <- adf.test(tpriok_train_diff)
+uji_adf_dif
+
+plot(tpriok_train_diff, lwd = 2, main = "Plot Data Diferensiasi 1 Kali ",
+     
+xlab = "Waktu", ylab = "Nilai Diferensiasi Data")
+abline(h = mean(tpriok_train_diff), lwd = 2, lty = 2, col = "red")
+
+
+
+
+```
+=============================================================================================================================================
+
+
+```{r}
+acf(tpriok_train_diff, main = "Grafik ACF Data Diferensiasi 1 kali ", lag.max = 36)
+
+
+
+```
+
+```{r}
+pacf(tpriok_train_diff, main = "Grafik PACF Data Diferensiasi 1 kali ", lag.max = 36)
+
+
+```
+
+# hasil diffresialkan 2 kali 
+```{r}
+
+tpriok_train_diff2 <- diff(tpriok_train_diff)
+#uji adf tpriok_train_diff
+
+uji_adf_dif2 <- adf.test(tpriok_train_diff2)
+
+plot(tpriok_train_diff2, lwd = 2, main = "Plot Data Diferensiasi 2 Kali ",
+     
+xlab = "Waktu", ylab = "Nilai Diferensiasi Data")
+abline(h = mean(tpriok_train_diff2), lwd = 2, lty = 2, col = "red")
+cat("\nDickey-Fuller =", uji_adf_dif2$statistic, ", p-value =", uji_adf_dif2$p.value, "\nalternative hypothesis: stationary\n")
+
+acf(tpriok_train_diff2, main = "Grafik ACF Data Diferensiasi 2 kali ", lag.max = 36)
+pacf(tpriok_train_diff2, main = "Grafik ACF Data Diferensiasi 2 kali ", lag.max = 36)
+
+
+```
+# beberapa hal yang didapatkan
+<p>1.Beberapa hal yang didapat jika kita menggunakan metode diffrensialkan 1 kali dan 2 kali kita dapat memiliki sama mendapatkan model yang stasioner akan tetapi terdapat perbedaan yaitu nilai Dickey-Fuller yang berbeda sacara signifikan</p>
+
+<p>2.mungkin yang lebih cocok yaitu metode diffrensial 2 kali karena memiliki nilai Dickey-Fuller yang sangat kecil </p>
+<p>3.Tidak ada metode yang lebih baik karena disini kita hanya mengecek kestasioneran model yang di peroleh </p>
+
+
+# Jurnal 4
+
+## Estimasi Parameter
+
+<p>Dalam melakukan estimasi parameter dapat dilakukan dengan menggunakan autokorelasi parsial ataupun dengan menggunakan metode galat kuadrat terkecil. Pada bagian ini akan dibahas mengenai metode galat kuadrat terkecil untuk model AR(1), dan MA(1) penejasan teradapt pada jurnal yang di berikan</p>
+
+<p>Beberapa metode untuk untk mengestimasi parameter yaitu, metode kuadrat, metode maksimum likelihood dan metode momen,Metode kuadrat yaitu  metode yang fokus pada memperkirakan parameter dalam suatu model yang paling sesuai dengan data yang diamati, kalu metode maksimum likelihood itu  adalah metode yang menemukan nilai parameter yang paling mungkin menjelaskan data yang diamati, berdasarkan probabilitasnya  dan memaksimalkan parameter fungsi yang akan diamati jika metode moment itu berfokus pada pencocokan distribusi fungsi parameter yang akan kita estimasi</p>
+
+<p> dalam ketiga metode itu masing masing memiliki kekurangan dan kelebihan jika metode kuadrat memiliki kelebihan yaitu implementasi mudah digunakan dan mudah di pahami kekurangannya yaitu kita sulit menemukan hasil yang optimal jika maksimum likelihood itu sulit dipahami dan metode lebih rumuit akan tetapi hasil nya lebih optimal dan jika metode moment itu memberikan estimasi parameter yang efisien dan konsisten akan tetapi kita sulit menentukan distribusi data yang tepat </p>
+
+===============================================================================================================================================
+# Jurnal 5
+
+<p>Setelah melakukan penaksiran parameter, akan dipilih model yang paling cocok untuk memodelkan data. Ada 3 hal yang akan dipertimbangkan dalam memilih model yang paling cocok sebagai berikut pertama Nilai AIC (Akaike's Information Criteria) signifikansi parameter dan parsimoni </p>
+<p>dengan maximum likelihood diperoleh dari fungsi kepadatan peluang galat (umumnya dipilih distribusi normal dengan rataan 0 dan variansi 𝜎2𝜀 ) dan 𝑘 adalah banyak parameter. Secara umum fungsi ini akan memberikan penalty yang lebih besar pada model yang memiliki banyak parameter. Model yang baik adalah model yang memiliki nilai AIC terendah.</p>
+
+```{r}
+#Memuat library forecast
+library(forecast)
+mod_1 <- arima(tpriok_train, order = c(3, 2, 2))
+print(summary(mod_1)) # kalu pakai ini kita bisa langsung mendapatkan ME RMSE  AE MPE MAPE MASE
+
+```
+
+# (2,,1,1) model 2
+```{r}
+#Memuat library forecast
+library(forecast)
+mod_2 <- arima(tpriok_train, order = c(2, 1, 1))
+print(summary(mod_2))
+
+#model 3
+```
+
+```{r}
+mod_3 <- arima(tpriok_train, order = c(2, 1, 1))
+mod_3
+
+```
+
+# Model secara auto
+
+```{r}
+mod_auto <- auto.arima(tpriok_train, max.p = 4, max.q = 4, seasonal = FALSE,
+stationary = FALSE)
+print(summary(mod_auto))
+
+```
+===========================================================================================================================================
+
+# beberapa hal yang didapatkan
+
+<p> Beberapa hal yang didapatkan</p>
+<p> metode yang digunakan dalam untuk memodelkan data tersebut yaitu motode AIC </p>
+<p>AIC (Akaike Information Criterion), AICc (corrected Akaike Information Criterion), dan BIC (Bayesian Information Criterion) adalah ukuran statistik yang digunakan dalam pemodelan statistik dan analisis data untuk membandingkan kecocokan antara model yang berbeda.</p>
+
+<p>pada kasus kode saya untuk aic dan bic yang keluar hanya dapat untuk model_auto saja AICc=3663.59   BIC=3680.46 dimana BIC lebih besar dibandingkan AICc </p>
+
+
+=========================================================================================================================================
+
+# Jurnal 6
+
+
+```{r}
+mod_1_css <- arima(tpriok_train, order = c(2, 1, 1), method = "CSS")
+mod_1_css
+
+
+```
+
+```{r}
+mod_1_ML <- arima(tpriok_train, order = c(2, 1, 1), method = "ML")
+mod_1_ML
+```
+# beberapa hal di dapatkan 
+<p> Log likelihood dan AIC memberikan indikasi bahwa model yang diestimasi menggunakan metode Maximum Likelihood (ML) memiliki performa yang sedikit lebih baik dibandingkan dengan metode Conditional Sum of Squares (CSS) dilihat dari nilai part likelihood yang tidak berbeda jauh  </p>
+
+```{r}
+library(lmtest)
+coeftest(mod_1)
+coeftest(mod_2)
+coeftest(mod_3)
+
+```
+
+#menegecek akurasi model
+
+```{r}
+accuracy(mod_1_ML)
+accuracy(mod_2)
+accuracy(mod_3)
+accuracy(mod_auto)
+
+
+
+
+```
+
+
+# Uji agnostik 
+
+```{r}
+checkresiduals(mod_1)
+checkresiduals(mod_2)
+checkresiduals(mod_3)
+checkresiduals(mod_auto)
+
+```
+
+# jurnal 7
+
+<p>Mengecek kenormalan data dengan uji Kolmogorov-Smirnov, Anderson-Darling, Cramer von Mises, Jarque-Bera,
+dan Shapiro-Wilk </p>
+
+<p> berikut kodenya </p>
+
+```{r}
+# Mendapatkan data adri mode residuals 
+# menggunakan library nortest
+library(nortest)
+residuals_mod_1 <- residuals(mod_1)
+
+# Uji Kolmogorov-Smirnov
+ks_test_result <- ks.test(residuals_mod_1, "pnorm")
+print(ks_test_result)
+
+# Uji Anderson-Darling
+ad_test_result <- ad.test(residuals_mod_1)
+print(ad_test_result)
+
+# Uji Cramer von Mises
+cv_test_result <- cvm.test(residuals_mod_1)
+print(cv_test_result)
+# Uji Shapiro-Wilk
+shapiro_test_result <- shapiro.test(residuals_mod_1)
+print(shapiro_test_result)
+
+```
+<p> berdasarkan hasil pengujian di atas dapt disimpulkan data residual tidak berdistribusi secara normal dengan beberapa hasil uji tersebut</p>
+
+#forecasting model 1
+```{r}
+library(forecast)
+validation <- forecast(tpriok_train, model = mod_1, h = length(tpriok_test))
+actual <- as.vector(tpriok_test)
+ape_validation <- abs((as.vector(validation$mean) - actual)/actual)
+mape_validation <- mean(ape_validation)
+mape_validation
+
+```
+
+#forecasting model 2
+```{r}
+library(forecast)
+validation <- forecast(tpriok_train, model = mod_2, h = length(tpriok_test))
+actual <- as.vector(tpriok_test)
+ape_validation <- abs((as.vector(validation$mean) - actual)/actual)
+mape_validation <- mean(ape_validation)
+mape_validation
+
+```
+
+#forecasting model 3
+```{r}
+library(forecast)
+validation <- forecast(tpriok_train, model = mod_3, h = length(tpriok_test))
+actual <- as.vector(tpriok_test)
+ape_validation <- abs((as.vector(validation$mean) - actual)/actual)
+mape_validation <- mean(ape_validation)
+mape_validation
+
+```
+
+#forecasting model auto
+```{r}
+library(forecast)
+validation <- forecast(tpriok_train, model = mod_auto, h = length(tpriok_test))
+actual <- as.vector(tpriok_test)
+ape_validation <- abs((as.vector(validation$mean) - actual)/actual)
+mape_validation <- mean(ape_validation)
+mape_validation
+
+```
+
+
+```{r}
+fc <- forecast(tpriok, model = mod_2, h = 5)
+summary(fc)
+
+plot(fc, main = "Perakiraan Model ARIMA Uji data Tanjung priok")
+
+
+```
+
+
+# Jurnal 8 dengan melakukan uji yang sama 
+
+```{r}
+# Memanggil Data
+data <- read_excel("Data1.xlsx", sheet = "Tanjung Perak", col_types = c("date", "numeric"))
+
+# Menghitung rolling mean 7 hari
+data <- data %>%
+  mutate(rolling_mean_7 = rollmean(`Total Barang (Ton)`, k = 6.5, fill = NA, align = "right"))
+
+# Mengelompokkan data
+df <- data %>%
+  select(Waktu, `Total Barang (Ton)`, rolling_mean_7) %>%
+  gather(key = "variabel", value = "value", -Waktu)
+
+# Membuat grafik data
+ggplot(df, aes(x = Waktu, y = value, group = variabel)) +
+  geom_line(aes(linetype = variabel, color = variabel)) +
+  geom_hline(yintercept = mean(data$`Total Barang (Ton)`), color = "brown1") +
+  scale_linetype_manual(values = c("dashed", "solid", "dashed")) +
+  scale_color_manual(values = c("red", "darkslategrey")) +
+  labs(title = "Grafik Total Barang (Ton) di Tanjung Perak 2006-2020", x = "Waktu", y = "Total Barang (Ton)")
+acf(data$`Total Barang (Ton)`, main = "Grafik ACF Data", lag.max = 36)
+pacf(data$`Total Barang (Ton)`, main = "Grafik PACF Data", lag.max = 36)
+
+```
+
+```{r}
+
+# Membuat data train dan validation dan mengubahnya menjadi data
+# time series
+# Ini dibutuhkan untuk menghasilkan data prediksi
+tpriok <- ts(data$`Total Barang (Ton)`)
+# data yang akan digunakan untuk membuat model
+tperak_train <- ts(data$`Total Barang (Ton)`[1:138])
+# data yang akan digunakan untuk memvalidasi model
+tperak_tes <- ts(data$`Total Barang (Ton)`[139:173])
+
+```
+
+
+```{r}
+y_mean <- mean(tperak_train)
+rmse_train <- mean((tperak_train - y_mean)^2)^0.5
+rmse_train
+
+```
+
+
+```{r}
+y_mean <- mean(tperak_train)
+mape_train <- mean(abs((tperak_train - y_mean))/tperak_train)
+mape_train
+
+```{r}
+# Menghitung uji adf tperak_train
+uji_adf <- adf.test(tperak_train)
+
+# informasi uji adf
+cat("\nDickey-Fuller =", uji_adf$statistic, ", p-value =", uji_adf$p.value, "\nalternative hypothesis: stationary\n")
+
+# Plot ACF data dengan lag maksimum 36
+acf(tperak_train, main = "Grafik ACF Data", lag.max = 36, cex.main = 1.5)
+
+```
+
+```{r}
+
+tperak_train_diff <- diff(tperak_train)
+#uji adf tperak_train_diff
+
+uji_adf_dif <- adf.test(tperak_train_diff)
+
+plot(tperak_train_diff, lwd = 2, main = "Plot Data Diferensiasi 1 Kali ",
+     
+xlab = "Waktu", ylab = "Nilai Diferensiasi Data")
+abline(h = mean(tperak_train_diff), lwd = 2, lty = 2, col = "red")
+cat("\nDickey-Fuller =", uji_adf_dif$statistic, ", p-value =", uji_adf_dif$p.value, "\nalternative hypothesis: stationary\n")
+
+
+
+```
+
+
+
+```{r}
+acf(tperak_train_diff, main = "Grafik ACF Data Diferensiasi 1 kali ", lag.max = 36)
+
+
+
+```
+
+```{r}
+pacf(tperak_train_diff, main = "Grafik PACF Data Diferensiasi", lag.max = 36)
+
+
+```
+
+# Estimasi Parameter
+
+```{r}
+#Memuat library forecast
+library(forecast)
+mod_1 <- arima(tperak_train, order = c(3, 2, 3))
+print(summary(mod_1)) # kalu pakai ini kita bisa langsung mendapatkan ME RMSE  AE MPE MAPE MASE
+
+```
+
+# (2,,1,1) model 2
+```{r}
+#Memuat library forecast
+library(forecast)
+mod_2 <- arima(tperak_train, order = c(2, 1, 1))
+mod_2
+
+#model 3
+
+```{r}
+mod_3 <- arima(tperak_train, order = c(2, 1, 1))
+mod_3
+
+```
+
+```
+# Model secara auto
+
+```{r}
+mod_auto <- auto.arima(tperak_train, max.p = 100, max.q = 100, seasonal = FALSE,
+stationary = FALSE)
+print(summary(mod_auto))
+
+```
+# metode penaksiran parameter kuadrat galat terkecil.
+```{r}
+mod_1_css <- arima(tperak_train, order = c(2, 1, 1), method = "CSS")
+mod_1_css
+
+```
+
+```{r}
+mod_1_ML <- arima(tperak_train, order = c(2, 1, 1), method = "ML")
+mod_1_ML
+```
+
+```{r}
+library(lmtest)
+coeftest(mod_1)
+coeftest(mod_2)
+coeftest(mod_3)
+
+```
+
+#menegecek akurasi model
+
+```{r}
+accuracy(mod_1)
+accuracy(mod_2)
+accuracy(mod_3)
+accuracy(mod_auto)
+
+
+
+
+```
+
+
+# Uji agnostik 
+
+```{r}
+checkresiduals(mod_1)
+checkresiduals(mod_2)
+checkresiduals(mod_3)
+checkresiduals(mod_auto)
+
+```
+
+#forecasting model 1
+```{r}
+library(forecast)
+validation <- forecast(tperak_train, model = mod_1, h = length(tperak_tes))
+actual <- as.vector(tperak_tes)
+ape_validation <- abs((as.vector(validation$mean) - actual)/actual)
+mape_validation <- mean(ape_validation)
+mape_validation
+
+```
+
+#forecasting model 2
+```{r}
+library(forecast)
+validation <- forecast(tperak_train, model = mod_2, h = length(tperak_tes))
+actual <- as.vector(tperak_tes)
+ape_validation <- abs((as.vector(validation$mean) - actual)/actual)
+mape_validation <- mean(ape_validation)
+mape_validation
+
+```
+
+#forecasting model 3
+```{r}
+library(forecast)
+validation <- forecast(tperak_train, model = mod_3, h = length(tperak_tes))
+actual <- as.vector(tperak_tes)
+ape_validation <- abs((as.vector(validation$mean) - actual)/actual)
+mape_validation <- mean(ape_validation)
+mape_validation
+
+```
+
+#forecasting model auto
+```{r}
+library(forecast)
+validation <- forecast(tperak_train, model = mod_auto, h = length(tperak_tes))
+actual <- as.vector(tperak_tes)
+ape_validation <- abs((as.vector(validation$mean) - actual)/actual)
+mape_validation <- mean(ape_validation)
+mape_validation
+
+```
+
+
+```{r}
+fc <- forecast(tpriok, model = mod_2, h = 5)
+summary(fc)
+
+plot(fc, main = "Prakiraan Model ARIMA Pada data Tanjung perak ")
+
+
+```
+
+# beberapa kesimpulan 
+
+<p>Model yang dipilih untuk memodelkan data Total Barang di Pelabuhan Tanjung Priok adalah ARIMA (2, 1, 1) dan memiliki MAPE sebesar ≈ 31%. Meskipun MAPE model bernilai kecil, namum model tidak mengikuti data, sehingga model ini kurang cocok digunakan untuk memprediksi datadan saya sudah membanding dengan beberapa model lain tetapi range MAPE masih sebesar sebesar ≈ 31% - 35% sehingga saya mengambil MAPE yang paling kecil mungkin kita perlu membuat kemungkinan model yang lain yang dapat mendakati forecasting ini .</p>
